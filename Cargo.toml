@@ -1,0 +1,21 @@
+[package]
+name = "zettabgp"
+version = "0.1.0"
+authors = ["Vladimir Melnikov <wlad.w.m@gmail.com>"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/wladwm/zettabgp"
+keywords = ["BGP"]
+categories = ["networking"]
+description = "This is a BGP (parsing and composing) and BMP (only parsing) protocols driver library for Rust"
+readme = "README.md"
+
+[features]
+default = ["serialization"]
+serialization = ["serde"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version="1.0.125", optional = true }
+

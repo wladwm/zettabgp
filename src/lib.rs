@@ -1,0 +1,483 @@
+// Copyright 2021 Vladimir Melnikov.
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// https://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
+//! This is a BGP and BMP protocols driver library for Rust.
+//! 
+//!  * BGP - Border Gateway Protocol version 4.
+//!  * BMP - BGP Monitoring Protocol version 3.
+//! 
+//! ## Supported BGP message types
+//!  * Open
+//!  * Notification
+//!  * Keepalive
+//!  * Update
+//! 
+//! ## Supported BMP message types
+//!  * Initiation
+//!  * Termination
+//!  * PeerUpNotification
+//!  * RouteMonitoring
+//! 
+//! ## Supported address families NLRI (network layer reachability information)
+//!  * ipv4 unicast
+//!  * ipv4 labeled-unicast
+//!  * ipv4 multicast
+//!  * ipv4 mvpn
+//!  * vpnv4 unicast
+//!  * vpnv4 multicast
+//!  * ipv6 unicast
+//!  * ipv6 labeled-unicast
+//!  * ipv6 multicast
+//!  * vpnv6 unicast
+//!  * vpnv6 multicast
+//!  * vpls
+//!  * evpn
+//!  * flowspec ipv4
+//!  * flowspec ipv6
+//! 
+//! ## Supported path attributes
+//!  * MED
+//!  * Origin
+//!  * Local preference
+//!  * AS path
+//!  * Communities
+//!  * Extended communities
+//!  * Aggregator AS
+//!  * Atomic aggregate
+//!  * Cluster list
+//!  * Originator ID
+//!  * Attribute set
+//!  * some PMSI tunnels
+//! 
+//! # Quick Start
+//!
+//! Library allow you to parse protocol messages (as binary buffers) into Rust data structures to frther processing.
+//! Or generate valid protocol messages from Rust data structure.
+//! So it can be use in any environment (synrchronous or asynchronous) to make a BGP RR, monitoring system or BGP analytics.
+//!
+//! ```
+//! use zettabgp::prelude::*;
+//! use std::io::{Read,Write};
+//! let mut socket = match std::net::TcpStream::connect("127.0.0.1:179") {
+//!  Ok(sck) => sck,
+//!  Err(e) => {eprintln!("Unable to connect to BGP neighbor: {}",e);return;}
+//! };
+//! let params=BgpSessionParams::new(64512,180,BgpTransportMode::IPv4,std::net::Ipv4Addr::new(1,1,1,1),vec![BgpCapability::SafiIPv4u].into_iter().collect());
+//! let mut buf = [0 as u8; 32768];
+//! let mut open_my = params.open_message();
+//! let open_sz = open_my.encode_to(&params, &mut buf[19..]).unwrap();
+//! let tosend = params.prepare_message_buf(&mut buf, BgpMessageType::Open, open_sz).unwrap();
+//! socket.write_all(&buf[0..tosend]).unwrap();//send my open message
+//! socket.read_exact(&mut buf[0..19]).unwrap();//read response message head
+//! let messagehead=params.decode_message_head(&buf).unwrap();//decode message head
+//! if messagehead.0 == BgpMessageType::Open {
+//!   socket.read_exact(&mut buf[0..messagehead.1]).unwrap();//read message body
+//!   let mut bom = BgpOpenMessage::new();
+//!   bom.decode_from(&params, &buf[0..messagehead.1]).unwrap();//decode received message body
+//!   eprintln!("BGP Open message received: {:?}", bom);
+//! }
+//! ```
+//! 
+#[cfg(feature = "serialization")]
+extern crate serde;
+
+pub mod afi;
+pub mod error;
+pub mod message;
+pub mod bmp;
+pub mod util;
+pub mod prelude;
+
+use error::*;
+use message::open::*;
+use util::*;
+
+/// BGP session transport - ipv4 or ipv6.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BgpTransportMode {
+    IPv4,
+    IPv6,
+}
+
+impl From<std::net::IpAddr> for BgpTransportMode {
+    #[inline]
+    fn from(addr: std::net::IpAddr) -> Self {
+        match addr {
+            std::net::IpAddr::V4(_) => BgpTransportMode::IPv4,
+            std::net::IpAddr::V6(_) => BgpTransportMode::IPv6,
+        }
+    }
+}
+
+/// This trait represens NLRI which have sequental chain encoding with opaque length.
+pub trait BgpAddrItem<T: std::marker::Sized> {
+    /// Decode from buffer. Returns entity and consumed buffer length, or error.
+    fn decode_from(
+        mode: BgpTransportMode,
+        buf: &[u8],
+    ) -> Result<(T, usize), BgpError>;
+    /// Encode entity into the buffer. Returns consumed buffer length, or error.
+    fn encode_to(
+        &self,
+        mode: BgpTransportMode,
+        buf: &mut [u8],
+    ) -> Result<usize, BgpError>;
+}
+
+/// This trait represens BGP protocol message.
+pub trait BgpMessage {
+    /// Decode from buffer.
+    fn decode_from(
+        &mut self,
+        peer: &BgpSessionParams,
+        buf: &[u8],
+    ) -> Result<(), BgpError>;
+    /// Encode to buffer. Returns consumed buffer length, or error.
+    fn encode_to(
+        &self,
+        peer: &BgpSessionParams,
+        buf: &mut [u8],
+    ) -> Result<usize, BgpError>;
+}
+
+/// Six-byte ethernet mac address. Used in EVPN.
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MacAddress {
+    pub mac_address: [u8; 6],
+}
+impl MacAddress {
+    /// Construct new zero mac address.
+    pub fn new() -> MacAddress {
+        MacAddress {
+            mac_address: [0 as u8; 6],
+        }
+    }
+    /// Construct new mac address from 6 bytes.
+    pub fn from(b: &[u8]) -> MacAddress {
+        let mut bf = [0 as u8; 6];
+        bf.clone_from_slice(&b[0..6]);
+        MacAddress { mac_address: bf }
+    }
+}
+impl std::fmt::Display for MacAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{:#02x}:{:#02x}:{:#02x}:{:#02x}:{:#02x}:{:#02x}",
+            self.mac_address[0],
+            self.mac_address[1],
+            self.mac_address[2],
+            self.mac_address[3],
+            self.mac_address[4],
+            self.mac_address[5],
+        )
+    }
+}
+
+/// BGP capability for OPEN message.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BgpCapability {
+    /// BGP capability ipv4 unicast.
+    SafiIPv4u,
+    /// BGP capability ipv4 multicast.
+    SafiIPv4m,
+    /// BGP capability ipv4 mvpn.
+    SafiIPv4mvpn,
+    /// BGP capability ipv4 flowspec.
+    SafiIPv4fu,
+    /// BGP capability vpnv4 unicast.
+    SafiVPNv4u,
+    /// BGP capability vpnv4 flowspec.
+    SafiVPNv4fu,
+    /// BGP capability vpnv4 multicast.
+    SafiVPNv4m,
+    /// BGP capability ipv4 labeled unicast.
+    SafiIPv4lu,
+    /// BGP capability ipv6 unicast.
+    SafiIPv6u,
+    /// BGP capability ipv6 labeled unicast.
+    SafiIPv6lu,
+    /// BGP capability ipv6 flowspec.
+    SafiIPv6fu,
+    /// BGP capability vpnv6 unicast.
+    SafiVPNv6u,
+    /// BGP capability vpnv6 multicast.
+    SafiVPNv6m,
+    /// BGP capability VPLS.
+    SafiVPLS,
+    /// BGP capability EVPN.
+    SafiEVPN,
+    /// BGP capability 32-bit AS numbers.
+    CapASN32(u32),
+    /// BGP capability route-refresh.
+    CapRR,
+}
+
+impl BgpCapability {
+    /// Bytes needed to encode capability in OPEN message.
+    fn bytes_len(&self) -> usize {
+        match self {
+            BgpCapability::SafiIPv4u => 6,
+            BgpCapability::SafiIPv4fu => 6,
+            BgpCapability::SafiIPv4m => 6,
+            BgpCapability::SafiIPv4mvpn => 6,
+            BgpCapability::SafiVPNv4u => 6,
+            BgpCapability::SafiVPNv4fu => 6,
+            BgpCapability::SafiVPNv4m => 6,
+            BgpCapability::SafiIPv4lu => 6,
+            BgpCapability::SafiIPv6u => 6,
+            BgpCapability::SafiIPv6lu => 6,
+            BgpCapability::SafiIPv6fu => 6,
+            BgpCapability::SafiVPNv6u => 6,
+            BgpCapability::SafiVPNv6m => 6,
+            BgpCapability::SafiVPLS => 6,
+            BgpCapability::SafiEVPN => 6,
+            BgpCapability::CapASN32(_) => 6,
+            BgpCapability::CapRR => 2,
+        }
+    }
+    /// Store capability code into the given buffer.
+    fn fill_buffer(&self, buf: &mut [u8]) {
+        match self {
+            BgpCapability::SafiIPv4u => {
+                buf.clone_from_slice(&[1, 4, 0, 1, 0, 1]);
+            }
+            BgpCapability::SafiIPv4fu => {
+                buf.clone_from_slice(&[1, 4, 0, 1, 0, 133]);
+            }
+            BgpCapability::SafiIPv4m => {
+                buf.clone_from_slice(&[1, 4, 0, 1, 0, 4]);
+            }
+            BgpCapability::SafiIPv4mvpn => {
+                buf.clone_from_slice(&[1, 4, 0, 1, 0, 5]);
+            }
+            BgpCapability::SafiVPNv4u => {
+                buf.clone_from_slice(&[1, 4, 0, 1, 0, 128]);
+            }
+            BgpCapability::SafiVPNv4fu => {
+                buf.clone_from_slice(&[1, 4, 0, 1, 0, 134]);
+            }
+            BgpCapability::SafiVPNv4m => {
+                buf.clone_from_slice(&[1, 4, 0, 1, 0, 129]);
+            }
+            BgpCapability::SafiIPv4lu => {
+                buf.clone_from_slice(&[1, 4, 0, 1, 0, 2]);
+            }
+            BgpCapability::SafiIPv6u => {
+                buf.clone_from_slice(&[1, 4, 0, 2, 0, 1]);
+            }
+            BgpCapability::SafiIPv6fu => {
+                buf.clone_from_slice(&[1, 4, 0, 2, 0, 133]);
+            }
+            BgpCapability::SafiIPv6lu => {
+                buf.clone_from_slice(&[1, 4, 0, 2, 0, 4]);
+            }
+            BgpCapability::SafiVPNv6u => {
+                buf.clone_from_slice(&[1, 4, 0, 2, 0, 128]);
+            }
+            BgpCapability::SafiVPNv6m => {
+                buf.clone_from_slice(&[1, 4, 0, 2, 0, 129]);
+            }
+            BgpCapability::SafiVPLS => {
+                buf.clone_from_slice(&[1, 4, 0, 25, 0, 65]);
+            }
+            BgpCapability::SafiEVPN => {
+                buf.clone_from_slice(&[1, 4, 0, 25, 0, 70]);
+            }
+            BgpCapability::CapASN32(as_num) => {
+                buf.clone_from_slice(&[
+                    65,
+                    4,
+                    (as_num >> 24) as u8,
+                    ((as_num >> 16) & 0xff) as u8,
+                    ((as_num >> 8) & 0xff) as u8,
+                    (as_num & 0xff) as u8,
+                ]);
+            }
+            BgpCapability::CapRR => {
+                buf.clone_from_slice(&[2, 0]);
+            }
+        };
+    }
+    /// Decode capability code from given buffer. Returns capability and consumed buffer length.
+    fn from_buffer(buf: &[u8]) -> Result<(BgpCapability, usize), BgpError> {
+        if buf.len() >= 6 && buf[0] == 1 && buf[1] == 4 && buf[2] == 0 {
+            //safi
+            if buf[3] == 1 && buf[4] == 0 {
+                //ipv4
+                match buf[5] {
+                    1 => Ok((BgpCapability::SafiIPv4u, 6)),
+                    2 => Ok((BgpCapability::SafiIPv4lu, 6)),
+                    4 => Ok((BgpCapability::SafiIPv4m, 6)),
+                    5 => Ok((BgpCapability::SafiIPv4mvpn, 6)),
+                    128 => Ok((BgpCapability::SafiVPNv4u, 6)),
+                    129 => Ok((BgpCapability::SafiVPNv4m, 6)),
+                    133 => Ok((BgpCapability::SafiIPv4fu, 6)),
+                    134 => Ok((BgpCapability::SafiVPNv4fu, 6)),
+                    _ => Err(BgpError::static_str(
+                        "Invalid ipv4 safi capability",
+                    )),
+                }
+            } else if buf[3] == 2 && buf[4] == 0 {
+                //ipv6
+                match buf[5] {
+                    1 => Ok((BgpCapability::SafiIPv6u, 6)),
+                    4 => Ok((BgpCapability::SafiIPv6lu, 6)),
+                    128 => Ok((BgpCapability::SafiVPNv6u, 6)),
+                    129 => Ok((BgpCapability::SafiVPNv6m, 6)),
+                    133 => Ok((BgpCapability::SafiIPv6fu, 6)),
+                    _ => Err(BgpError::static_str(
+                        "Invalid ipv6 safi capability",
+                    )),
+                }
+            } else if buf[3] == 25 && buf[4] == 0 && buf[5] == 65 {
+                match buf[5] {
+                    65 => Ok((BgpCapability::SafiVPLS, 6)),
+                    70 => Ok((BgpCapability::SafiEVPN, 6)),
+                    _ => Err(BgpError::static_str(
+                        "Invalid vpls safi capability",
+                    )),
+                }
+            } else {
+                Err(BgpError::static_str("Invalid capability"))
+            }
+        } else if buf.len() >= 6 && buf[0] == 65 && buf[1] == 4 {
+            Ok((BgpCapability::CapASN32(getn_u32(&buf[2..6])), 6))
+        } else if buf.len() >= 2 && buf[0] == 2 && buf[1] == 0 {
+            Ok((BgpCapability::CapRR, 2))
+        } else {
+            Err(BgpError::static_str("Invalid capability"))
+        }
+    }
+}
+
+/// BGP session parameters - AS, hold time, capabilities etc.
+#[derive(Debug, Clone)]
+pub struct BgpSessionParams {
+    /// Autonomous system number.
+    pub as_num: u32,
+    /// Hold time in seconds.
+    pub hold_time: u16,
+    /// IP transport mode.
+    pub peer_mode: BgpTransportMode,
+    /// Flag that session has 32-bit AS numbers capability.
+    pub has_as32bit: bool,
+    /// Router ID.
+    pub router_id: std::net::Ipv4Addr,
+    /// Capability set for this session.
+    pub caps: std::collections::HashSet<BgpCapability>,
+}
+
+impl BgpSessionParams {
+    pub fn new(
+        asnum: u32,
+        holdtime: u16,
+        peermode: BgpTransportMode,
+        routerid: std::net::Ipv4Addr,
+        cps: std::collections::HashSet<BgpCapability>,
+    ) -> BgpSessionParams {
+        BgpSessionParams {
+            as_num: asnum,
+            hold_time: holdtime,
+            peer_mode: peermode,
+            has_as32bit: true,
+            router_id: routerid,
+            caps: cps,
+        }
+    }
+    /// Constructs BGP OPEN message from params.
+    pub fn open_message(&self) -> BgpOpenMessage {
+        let mut bom = BgpOpenMessage::new();
+        bom.as_num = self.as_num;
+        bom.router_id = self.router_id;
+        bom.caps = self.caps.iter().copied().collect();
+        bom.hold_time = self.hold_time;
+        bom
+    }
+    /// Check capability set and validates has_as32bit flag.
+    pub fn check_caps(&mut self) {
+        self.has_as32bit = false;
+        for cap in self.caps.iter() {
+            match cap {
+                BgpCapability::CapASN32(n) => {
+                    self.has_as32bit = true;
+                    if self.as_num != 0 && self.as_num != 23456 && self.as_num != *n {
+                        eprintln!(
+                            "Warning: Capability 32-bit AS mismatch AS number: {:?}!={:?}",
+                            self.as_num, *n
+                        );
+                    }
+                    self.as_num = *n;
+                }
+                _ => {}
+            }
+        }
+    }
+    /// Decode message head from buffer. Returns following message kind and length.
+    pub fn decode_message_head(&self,buf:&[u8]) -> Result<(message::BgpMessageType, usize), BgpError> {
+        if buf.len()<19 {
+            return Err(BgpError::static_str(
+                "Invalid message header size!",
+            ));
+        }
+        for q in buf[0..16].iter() {
+            if (*q) != 255 {
+                return Err(BgpError::static_str(
+                    "Invalid header content, MD5 is not supported!",
+                ));
+            }
+        }
+        let messagetype = message::BgpMessageType::decode_from(buf[18])?;
+        Ok((messagetype, (getn_u16(&buf[16..18]) - 19) as usize))
+    }
+    /// Receive message head from buffer. Returns following message kind and length.
+    pub fn recv_message_head(
+        &mut self,
+        rdsrc: &mut impl std::io::Read,
+    ) -> Result<(message::BgpMessageType, usize), BgpError> {
+        let mut buf = [0 as u8; 19];
+        rdsrc.read_exact(&mut buf)?;
+        self.decode_message_head(&buf)
+    }
+    /// Stores BGP message head (19 bytes) into the buffer.
+    pub fn prepare_message_buf(&self,buf: &mut [u8],
+        messagetype: message::BgpMessageType,
+        messagelen: usize,
+    )-> Result<usize, BgpError> {
+        if buf.len() < (messagelen + 19) {
+            return Err(BgpError::insufficient_buffer_size());
+        }
+        buf[0..16].clone_from_slice(&[255 as u8; 16]);
+        let lng: u16 = (messagelen as u16) + 19;
+        buf[16] = (lng >> 8) as u8;
+        buf[17] = (lng & 0xff) as u8;
+        buf[18] = messagetype.encode();
+        Ok(lng as usize)
+    }
+    /// Writes buffer with BGP message into the target.
+    pub fn send_message_buf(
+        &mut self,
+        wrdst: &mut impl std::io::Write,
+        buf: &mut [u8],
+        messagetype: message::BgpMessageType,
+        messagelen: usize,
+    ) -> Result<(), BgpError> {
+        if buf.len() < (messagelen + 19) {
+            return Err(BgpError::insufficient_buffer_size());
+        }
+        buf[0..16].clone_from_slice(&[255 as u8; 16]);
+        let lng: u16 = (messagelen as u16) + 19;
+        buf[16] = (lng >> 8) as u8;
+        buf[17] = (lng & 0xff) as u8;
+        buf[18] = messagetype.encode();
+        match wrdst.write_all(&buf[0..(lng as usize)]) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e.into()),
+        }
+    }
+}
