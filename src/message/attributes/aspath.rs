@@ -25,8 +25,8 @@ pub struct BgpASpath {
 }
 
 impl BgpAS {
-    pub fn new() -> BgpAS {
-        BgpAS { value: 0 }
+    pub fn new(v:u32) -> BgpAS {
+        BgpAS { value: v }
     }
     pub fn tonumb(&self) -> u32 {
         if (self.value & 0xffff) == 0 {
@@ -106,7 +106,7 @@ impl BgpAttr for BgpASpath {
     fn attr(&self) -> BgpAttrParams {
         BgpAttrParams {
             typecode: 2,
-            flags: 0x40,//80,
+            flags: 0x50,
         }
     }
     fn encode_to(
@@ -115,6 +115,9 @@ impl BgpAttr for BgpASpath {
         buf: &mut [u8],
     ) -> Result<usize, BgpError> {
         let mut pos: usize;
+        if self.value.len()<1 {
+	  return Ok(0);
+	}
         if peer.has_as32bit {
             if buf.len()<(2+self.value.len()*4) {
                 return Err(BgpError::insufficient_buffer_size());
