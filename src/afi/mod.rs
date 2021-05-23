@@ -11,6 +11,9 @@ use crate::util::*;
 use crate::*;
 #[cfg(feature = "serialization")]
 use serde::ser::{SerializeSeq, SerializeStruct};
+#[cfg(feature = "serialization")]
+use serde::de::{self, Visitor};
+
 use std::cmp::Ordering;
 pub mod ipv4;
 pub use ipv4::*;
@@ -48,6 +51,105 @@ pub enum BgpAddr {
     V6RD(BgpIPv6RD),
     L2(BgpL2),
     MVPN(BgpMVPN),
+}
+
+/// Any kind of prefix - v4 or v6
+#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum BgpNet {
+    /// ipv4 prefix
+    V4(BgpAddrV4),
+    /// ipv6 prefix
+    V6(BgpAddrV6),
+}
+
+impl BgpNet {
+    /// New net
+    pub fn new(addr: std::net::IpAddr, prefixlen: u8) -> BgpNet {
+        match addr {
+            std::net::IpAddr::V4(ip4) => BgpNet::V4(BgpAddrV4::new(ip4,prefixlen)),
+            std::net::IpAddr::V6(ip6) => BgpNet::V6(BgpAddrV6::new(ip6,prefixlen))
+        }
+    }
+    /// Check if given subnet is in this subnet
+    /// ```
+    /// use std::net::Ipv4Addr;
+    /// use zettabgp::prelude::BgpAddrV4;
+    ///
+    /// assert!(BgpAddrV4::new(Ipv4Addr::new(192,168,0,0),16).contains(&BgpAddrV4::new(Ipv4Addr::new(192,168,0,0),24)));
+    /// ```
+    pub fn contains(&self, a: &BgpNet) -> bool {
+        match self {
+            BgpNet::V4(s4) => {
+                match a {
+                    BgpNet::V4(a4) => s4.contains(a4),
+                    _ => false
+                }
+            },
+            BgpNet::V6(s6) => {
+                match a {
+                    BgpNet::V6(a6) => s6.contains(a6),
+                    _ => false
+                }
+            }
+        }
+    }
+}
+
+impl std::str::FromStr for BgpNet {
+    type Err = std::net::AddrParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(ip4) = s.parse::<BgpAddrV4>() {
+            return Ok(BgpNet::V4(ip4))   
+        };
+        Ok(BgpNet::V6(s.parse::<BgpAddrV6>()?))
+    }
+}
+impl std::fmt::Display for BgpNet {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            BgpNet::V4(s4) => {
+                s4.fmt(f)
+            },
+            BgpNet::V6(s6) => {
+                s6.fmt(f)
+            }
+        }
+    }
+}
+#[cfg(feature = "serialization")]
+impl serde::Serialize for BgpNet {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.to_string().as_str())
+    }
+}
+#[cfg(feature = "serialization")]
+struct BgpNetVisitor;
+
+#[cfg(feature = "serialization")]
+impl<'de> Visitor<'de> for BgpNetVisitor {
+    type Value = BgpNet;
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a ipv4/ipv6 prefix")
+    }
+    fn visit_str<E>(self, value: &str) -> Result<BgpNet, E>
+                    where
+                        E: serde::de::Error,
+                    {
+        value.parse::<BgpNet>().map_err(de::Error::custom)
+    }
+}
+#[cfg(feature = "serialization")]
+impl<'de> serde::Deserialize<'de> for BgpNet {
+    fn deserialize<D>(deserializer: D) -> Result<BgpNet, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_string(BgpNetVisitor)
+    }
 }
 
 /// Represents variance of NLRI collections
