@@ -102,6 +102,30 @@ impl BgpUpdateMessage {
         }
         None
     }
+    /// returns MPUpdates
+    pub fn get_mpupdates(&self) -> Option<&BgpMPUpdates> {
+        for i in self.attrs.iter() {
+            match i {
+                BgpAttrItem::MPUpdates(n) => {
+                    return Some(&n);
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+    /// returns MPWithdraws
+    pub fn get_mpwithdraws(&self) -> Option<&BgpMPWithdraws> {
+        for i in self.attrs.iter() {
+            match i {
+                BgpAttrItem::MPWithdraws(n) => {
+                    return Some(&n);
+                }
+                _ => {}
+            }
+        }
+        None
+    }
 }
 impl BgpMessage for BgpUpdateMessage {
     fn decode_from(&mut self, peer: &BgpSessionParams, buf: &[u8]) -> Result<(), BgpError> {
@@ -173,9 +197,12 @@ impl BgpMessage for BgpUpdateMessage {
         match peer.peer_mode {
             BgpTransportMode::IPv4 => {
                 if let BgpAddrs::IPV4U(wdrw) = &self.withdraws {
-                    setn_u16(wdrw.len() as u16, &mut buf[curpos..]);
-                    curpos += 2;
-                    curpos += encode_bgpitems_to(&wdrw, &mut buf[curpos..])?;
+                    let wlen = encode_bgpitems_to(&wdrw, &mut buf[curpos + 2..])?;
+                    if wlen > 65535 {
+                        return Err(BgpError::too_many_data());
+                    }
+                    setn_u16(wlen as u16, &mut buf[curpos..]);
+                    curpos += 2 + wlen;
                 } else {
                     setn_u16(0, buf);
                     curpos = 2;
@@ -183,9 +210,12 @@ impl BgpMessage for BgpUpdateMessage {
             }
             BgpTransportMode::IPv6 => {
                 if let BgpAddrs::IPV6U(wdrw) = &self.withdraws {
-                    setn_u16(wdrw.len() as u16, &mut buf[curpos..]);
-                    curpos += 2;
-                    curpos += encode_bgpitems_to(&wdrw, &mut buf[curpos..])?;
+                    let wlen = encode_bgpitems_to(&wdrw, &mut buf[curpos + 2..])?;
+                    if wlen > 65535 {
+                        return Err(BgpError::too_many_data());
+                    }
+                    setn_u16(wlen as u16, &mut buf[curpos..]);
+                    curpos += 2 + wlen;
                 } else {
                     setn_u16(0, buf);
                     curpos = 2;
