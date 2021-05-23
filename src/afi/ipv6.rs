@@ -33,7 +33,7 @@ impl BgpAddrV6 {
             prefixlen: prefix_len,
         }
     }
-    /// Check if IP in subnet
+    /// if given subnet is in this subnet
     /// ```
     /// use std::net::Ipv6Addr;
     /// use zettabgp::prelude::BgpAddrV6;
@@ -56,7 +56,7 @@ impl BgpAddrV6 {
         getn_u128(&self.addr.octets())
             & (((1 << (128 - self.prefixlen)) - 1) ^ 0xffffffffffffffffffffffffffffffff)
     }
-    /// Check if IP in subnet
+    /// Check if IP in this subnet
     /// ```
     /// use zettabgp::prelude::BgpAddrV6;
     /// use std::net::Ipv6Addr;

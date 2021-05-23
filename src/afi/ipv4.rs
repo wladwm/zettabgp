@@ -93,7 +93,7 @@ impl BgpAddrV4 {
             )
         }
     }
-    /// Check if subnet is in subnet
+    /// Check if given subnet is in this subnet
     /// ```
     /// use std::net::Ipv4Addr;
     /// use zettabgp::prelude::BgpAddrV4;
