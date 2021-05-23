@@ -45,6 +45,10 @@ impl BgpError {
     pub fn protocol_error() -> BgpError {
         BgpError::Static("Protocol error")
     }
+    /// Just says that data size is too big to be encoded.
+    pub fn too_many_data() -> BgpError {
+        BgpError::Static("Too many data")
+    }
 }
 impl std::fmt::Display for BgpError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
