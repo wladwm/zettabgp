@@ -8,11 +8,10 @@
 
 //! BGP "extended community list" path attribute
 
-use crate::*;
 use crate::message::attributes::*;
+use crate::*;
 #[cfg(feature = "serialization")]
-use serde::ser::{SerializeSeq};
-
+use serde::ser::SerializeSeq;
 
 /// BGP extended community - element for BgpExtCommunityList path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -24,8 +23,23 @@ pub struct BgpExtCommunity {
 }
 impl BgpExtCommunity {
     /// creates route-target with AS + number
-    pub fn rt_asn(asn:u16,val:u32) -> BgpExtCommunity {
-        BgpExtCommunity{ctype:0,subtype:2,a:asn,b:val}
+    pub fn rt_asn(asn: u16, val: u32) -> BgpExtCommunity {
+        BgpExtCommunity {
+            ctype: 0,
+            subtype: 2,
+            a: asn,
+            b: val,
+        }
+    }
+    /// creates route-target with IP + number
+    pub fn rt_ipn(ipa: std::net::Ipv4Addr, val: u16) -> BgpExtCommunity {
+        let octs = ipa.octets();
+        BgpExtCommunity {
+            ctype: 1,
+            subtype: 2,
+            a: (octs[0] as u16) << 8 | (octs[1] as u16),
+            b: (octs[2] as u32) << 24 | (octs[3] as u32) << 16 | (val as u32),
+        }
     }
     pub fn decode_from(buf: &[u8]) -> Result<BgpExtCommunity, BgpError> {
         match buf.len() {
@@ -35,19 +49,17 @@ impl BgpExtCommunity {
                 a: getn_u16(&buf[2..4]),
                 b: getn_u32(&buf[4..8]),
             }),
-            _ => Err(BgpError::static_str(
-                "Invalid BgpExtCommunity item length",
-            )),
+            _ => Err(BgpError::static_str("Invalid BgpExtCommunity item length")),
         }
     }
     pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
-        if buf.len()<8 {
+        if buf.len() < 8 {
             return Err(BgpError::insufficient_buffer_size());
         }
-        buf[0]=self.ctype;
-        buf[1]=self.subtype;
-        setn_u16(self.a,&mut buf[2..4]);
-        setn_u32(self.b,&mut buf[4..8]);
+        buf[0] = self.ctype;
+        buf[1] = self.subtype;
+        setn_u16(self.a, &mut buf[2..4]);
+        setn_u32(self.b, &mut buf[4..8]);
         Ok(8)
     }
     /// extracts encoded ipv4
@@ -175,15 +187,11 @@ impl BgpAttr for BgpExtCommunityList {
             flags: 192,
         }
     }
-    fn encode_to(
-        &self,
-        _peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
+    fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
         let mut pos: usize = 0;
         for c in &self.value {
-            let ln=c.encode_to(&mut buf[pos..])?;
-            pos+=ln;
+            let ln = c.encode_to(&mut buf[pos..])?;
+            pos += ln;
         }
         Ok(pos)
     }
