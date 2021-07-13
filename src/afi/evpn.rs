@@ -82,9 +82,11 @@ impl BgpAddrItem<BgpEVPN2> for BgpEVPN2 {
         };
         sz += 1;
         let mc = MacAddress::from(&buf[sz..sz + 6]);
-        sz += 7;
+        sz += 6;
+        let addrtype = buf[sz];
+        sz += 1;
         let beg = sz;
-        let tip = match buf[sz - 1] {
+        let tip = match addrtype {
             0 => None,
             32 => {
                 sz += 4;
@@ -97,7 +99,7 @@ impl BgpAddrItem<BgpEVPN2> for BgpEVPN2 {
             _ => {
                 return Err(BgpError::from_string(format!(
                     "Invalid ip address size: {}",
-                    buf[sz - 1]
+                    addrtype
                 )));
             }
         };
@@ -112,41 +114,47 @@ impl BgpAddrItem<BgpEVPN2> for BgpEVPN2 {
                 ip: tip,
                 labels: lbls.0,
             },
-            rdp.1 + 14 + lbls.1,
+            sz + lbls.1,
         ))
     }
     fn encode_to(&self, mode: BgpTransportMode, buf: &mut [u8]) -> Result<usize, BgpError> {
-        let mut pos=self.rd.encode_to(mode, buf)?;
-        buf[pos]=self.esi_type;pos+=1;
-        if self.esi.len()==10 {
-            buf[pos..pos+10].copy_from_slice(self.esi.as_slice());
-            pos+=10;
+        let mut pos = self.rd.encode_to(mode, buf)?;
+        buf[pos] = self.esi_type;
+        pos += 1;
+        if self.esi.len() == 10 {
+            buf[pos..pos + 10].copy_from_slice(self.esi.as_slice());
+            pos += 10;
         } else {
             return Err(BgpError::static_str("l2vpn esi len != 10"));
         }
-        setn_u32(self.ether_tag, &mut buf[pos..pos+4]);pos+=4;
-        buf[pos]=48;pos+=1;//mac length
-        buf[pos..pos+6].copy_from_slice(&self.mac.mac_address);pos+=6;
+        setn_u32(self.ether_tag, &mut buf[pos..pos + 4]);
+        pos += 4;
+        buf[pos] = 48;
+        pos += 1; //mac length
+        buf[pos..pos + 6].copy_from_slice(&self.mac.mac_address);
+        pos += 6;
         match self.ip {
-            None => {buf[pos]=0;pos+=1;}
-            Some(s) => {
-                match s {
-                    std::net::IpAddr::V4(a) => {
-                        buf[pos]=32;pos+=1;
-                        encode_addrv4_to(&a, &mut buf[pos..pos+4])?;
-                        pos+=4;
-                    }
-                    std::net::IpAddr::V6(a) => {
-                        buf[pos]=128;pos+=1;
-                        encode_addrv6_to(&a, &mut buf[pos..pos+16])?;
-                        pos+=16;
-                    }
-                }
-                
+            None => {
+                buf[pos] = 0;
+                pos += 1;
             }
+            Some(s) => match s {
+                std::net::IpAddr::V4(a) => {
+                    buf[pos] = 32;
+                    pos += 1;
+                    encode_addrv4_to(&a, &mut buf[pos..pos + 4])?;
+                    pos += 4;
+                }
+                std::net::IpAddr::V6(a) => {
+                    buf[pos] = 128;
+                    pos += 1;
+                    encode_addrv6_to(&a, &mut buf[pos..pos + 16])?;
+                    pos += 16;
+                }
+            },
         }
-        let lbls=self.labels.set_bits_to(&mut buf[pos..])?;
-        Ok(pos+lbls.1)
+        let lbls = self.labels.set_bits_to(&mut buf[pos..])?;
+        Ok(pos + lbls.1)
     }
 }
 impl std::fmt::Display for BgpEVPN2 {
