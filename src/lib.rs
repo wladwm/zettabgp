@@ -7,22 +7,22 @@
 // except according to those terms.
 
 //! This is a BGP and BMP protocols driver library for Rust.
-//! 
+//!
 //!  * BGP - Border Gateway Protocol version 4.
 //!  * BMP - BGP Monitoring Protocol version 3.
-//! 
+//!
 //! ## Supported BGP message types
 //!  * Open
 //!  * Notification
 //!  * Keepalive
 //!  * Update
-//! 
+//!
 //! ## Supported BMP message types
 //!  * Initiation
 //!  * Termination
 //!  * PeerUpNotification
 //!  * RouteMonitoring
-//! 
+//!
 //! ## Supported address families NLRI (network layer reachability information)
 //!  * ipv4 unicast
 //!  * ipv4 labeled-unicast
@@ -39,7 +39,7 @@
 //!  * evpn
 //!  * flowspec ipv4
 //!  * flowspec ipv6
-//! 
+//!
 //! ## Supported path attributes
 //!  * MED
 //!  * Origin
@@ -53,7 +53,7 @@
 //!  * Originator ID
 //!  * Attribute set
 //!  * some PMSI tunnels
-//! 
+//!
 //! # Quick Start
 //!
 //! Library allow you to parse protocol messages (as binary buffers) into Rust data structures to frther processing.
@@ -82,16 +82,16 @@
 //!   eprintln!("BGP Open message received: {:?}", bom);
 //! }
 //! ```
-//! 
+//!
 #[cfg(feature = "serialization")]
 extern crate serde;
 
 pub mod afi;
+pub mod bmp;
 pub mod error;
 pub mod message;
-pub mod bmp;
-pub mod util;
 pub mod prelude;
+pub mod util;
 
 use error::*;
 use message::open::*;
@@ -117,36 +117,21 @@ impl From<std::net::IpAddr> for BgpTransportMode {
 /// This trait represens NLRI which have sequental chain encoding with opaque length.
 pub trait BgpAddrItem<T: std::marker::Sized> {
     /// Decode from buffer. Returns entity and consumed buffer length, or error.
-    fn decode_from(
-        mode: BgpTransportMode,
-        buf: &[u8],
-    ) -> Result<(T, usize), BgpError>;
+    fn decode_from(mode: BgpTransportMode, buf: &[u8]) -> Result<(T, usize), BgpError>;
     /// Encode entity into the buffer. Returns consumed buffer length, or error.
-    fn encode_to(
-        &self,
-        mode: BgpTransportMode,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError>;
+    fn encode_to(&self, mode: BgpTransportMode, buf: &mut [u8]) -> Result<usize, BgpError>;
 }
 
 /// This trait represens BGP protocol message.
 pub trait BgpMessage {
     /// Decode from buffer.
-    fn decode_from(
-        &mut self,
-        peer: &BgpSessionParams,
-        buf: &[u8],
-    ) -> Result<(), BgpError>;
+    fn decode_from(&mut self, peer: &BgpSessionParams, buf: &[u8]) -> Result<(), BgpError>;
     /// Encode to buffer. Returns consumed buffer length, or error.
-    fn encode_to(
-        &self,
-        peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError>;
+    fn encode_to(&self, peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError>;
 }
 
 /// Six-byte ethernet mac address. Used in EVPN.
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MacAddress {
     pub mac_address: [u8; 6],
 }
@@ -168,7 +153,7 @@ impl std::fmt::Display for MacAddress {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{:#02x}:{:#02x}:{:#02x}:{:#02x}:{:#02x}:{:#02x}",
+            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
             self.mac_address[0],
             self.mac_address[1],
             self.mac_address[2],
@@ -178,7 +163,28 @@ impl std::fmt::Display for MacAddress {
         )
     }
 }
-
+impl std::fmt::Debug for MacAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+            self.mac_address[0],
+            self.mac_address[1],
+            self.mac_address[2],
+            self.mac_address[3],
+            self.mac_address[4],
+            self.mac_address[5]
+        ))
+    }
+}
+#[cfg(feature = "serialization")]
+impl serde::Serialize for MacAddress {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.to_string().as_str())
+    }
+}
 /// BGP capability for OPEN message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BgpCapability {
@@ -319,9 +325,7 @@ impl BgpCapability {
                     129 => Ok((BgpCapability::SafiVPNv4m, 6)),
                     133 => Ok((BgpCapability::SafiIPv4fu, 6)),
                     134 => Ok((BgpCapability::SafiVPNv4fu, 6)),
-                    _ => Err(BgpError::static_str(
-                        "Invalid ipv4 safi capability",
-                    )),
+                    _ => Err(BgpError::static_str("Invalid ipv4 safi capability")),
                 }
             } else if buf[3] == 2 && buf[4] == 0 {
                 //ipv6
@@ -331,17 +335,13 @@ impl BgpCapability {
                     128 => Ok((BgpCapability::SafiVPNv6u, 6)),
                     129 => Ok((BgpCapability::SafiVPNv6m, 6)),
                     133 => Ok((BgpCapability::SafiIPv6fu, 6)),
-                    _ => Err(BgpError::static_str(
-                        "Invalid ipv6 safi capability",
-                    )),
+                    _ => Err(BgpError::static_str("Invalid ipv6 safi capability")),
                 }
             } else if buf[3] == 25 && buf[4] == 0 && buf[5] == 65 {
                 match buf[5] {
                     65 => Ok((BgpCapability::SafiVPLS, 6)),
                     70 => Ok((BgpCapability::SafiEVPN, 6)),
-                    _ => Err(BgpError::static_str(
-                        "Invalid vpls safi capability",
-                    )),
+                    _ => Err(BgpError::static_str("Invalid vpls safi capability")),
                 }
             } else {
                 Err(BgpError::static_str("Invalid capability"))
@@ -419,11 +419,12 @@ impl BgpSessionParams {
         }
     }
     /// Decode message head from buffer. Returns following message kind and length.
-    pub fn decode_message_head(&self,buf:&[u8]) -> Result<(message::BgpMessageType, usize), BgpError> {
-        if buf.len()<19 {
-            return Err(BgpError::static_str(
-                "Invalid message header size!",
-            ));
+    pub fn decode_message_head(
+        &self,
+        buf: &[u8],
+    ) -> Result<(message::BgpMessageType, usize), BgpError> {
+        if buf.len() < 19 {
+            return Err(BgpError::static_str("Invalid message header size!"));
         }
         for q in buf[0..16].iter() {
             if (*q) != 255 {
@@ -445,10 +446,12 @@ impl BgpSessionParams {
         self.decode_message_head(&buf)
     }
     /// Stores BGP message head (19 bytes) into the buffer.
-    pub fn prepare_message_buf(&self,buf: &mut [u8],
+    pub fn prepare_message_buf(
+        &self,
+        buf: &mut [u8],
         messagetype: message::BgpMessageType,
         messagelen: usize,
-    )-> Result<usize, BgpError> {
+    ) -> Result<usize, BgpError> {
         if buf.len() < (messagelen + 19) {
             return Err(BgpError::insufficient_buffer_size());
         }

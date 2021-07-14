@@ -9,7 +9,6 @@
 //! BGP "extended community list" path attribute
 
 use crate::message::attributes::*;
-use crate::*;
 #[cfg(feature = "serialization")]
 use serde::ser::SerializeSeq;
 

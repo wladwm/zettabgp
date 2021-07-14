@@ -10,12 +10,40 @@
 
 use crate::afi::*;
 
+//EVPN ESI field
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct EVPNESI {
+    pub v: Vec<u8>
+}
+impl EVPNESI {
+    pub fn empty() -> EVPNESI {
+        EVPNESI{v: Vec::new()}
+    }
+    pub fn new(src: &[u8]) -> EVPNESI {
+        EVPNESI{v: src.to_vec()}
+    }
+    pub fn is_zero(&self) -> bool {
+        self.v.iter().find(|x| (**x)!=0).is_none()
+    }
+}
+impl std::fmt::Display for EVPNESI {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if self.is_zero() {
+            Ok(())
+        } else {
+            for vl in self.v.iter() {
+                write!(f,"{} ",vl)?
+            };
+            Ok(())
+        }
+    }
+}
 //EVPN Ethernet Auto-Discovery (A-D) route
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BgpEVPN1 {
     pub rd: BgpRD,
     pub esi_type: u8,
-    pub esi: Vec<u8>,
+    pub esi: EVPNESI,
     pub ether_tag: u32,
     pub labels: MplsLabels,
 }
@@ -33,7 +61,7 @@ impl BgpAddrItem<BgpEVPN1> for BgpEVPN1 {
             BgpEVPN1 {
                 rd: rdp.0,
                 esi_type: esitype,
-                esi: esib.to_vec(),
+                esi: EVPNESI::new(esib),
                 ether_tag: etag,
                 labels: lbls.0,
             },
@@ -46,11 +74,11 @@ impl BgpAddrItem<BgpEVPN1> for BgpEVPN1 {
 }
 impl std::fmt::Display for BgpEVPN1 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "<{}> {}.{:?} {} {}",
-            self.rd, self.esi_type, self.esi, self.ether_tag, self.labels
-        )
+        write!(f, "{}:", self.rd)?;
+        if self.esi_type != 0 {
+            write!(f, "{}:", self.esi_type)?;
+        }
+        write!(f, "{}:{} {}", self.esi, self.ether_tag,self.labels)
     }
 }
 
@@ -59,7 +87,7 @@ impl std::fmt::Display for BgpEVPN1 {
 pub struct BgpEVPN2 {
     pub rd: BgpRD,
     pub esi_type: u8,
-    pub esi: Vec<u8>,
+    pub esi: EVPNESI,
     pub ether_tag: u32,
     pub mac: MacAddress,
     pub ip: Option<std::net::IpAddr>,
@@ -108,7 +136,7 @@ impl BgpAddrItem<BgpEVPN2> for BgpEVPN2 {
             BgpEVPN2 {
                 rd: rdp.0,
                 esi_type: esitype,
-                esi: esib.to_vec(),
+                esi: EVPNESI::new(esib),
                 ether_tag: etag,
                 mac: mc,
                 ip: tip,
@@ -121,8 +149,8 @@ impl BgpAddrItem<BgpEVPN2> for BgpEVPN2 {
         let mut pos = self.rd.encode_to(mode, buf)?;
         buf[pos] = self.esi_type;
         pos += 1;
-        if self.esi.len() == 10 {
-            buf[pos..pos + 10].copy_from_slice(self.esi.as_slice());
+        if self.esi.v.len() == 10 {
+            buf[pos..pos + 10].copy_from_slice(self.esi.v.as_slice());
             pos += 10;
         } else {
             return Err(BgpError::static_str("l2vpn esi len != 10"));
@@ -159,11 +187,15 @@ impl BgpAddrItem<BgpEVPN2> for BgpEVPN2 {
 }
 impl std::fmt::Display for BgpEVPN2 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "<{}> {}.{:?} {} {}",
-            self.rd, self.esi_type, self.esi, self.ether_tag, self.labels
-        )
+        write!(f, "{}:", self.rd)?;
+        if self.esi_type != 0 {
+            write!(f, "{}:", self.esi_type)?;
+        }
+        write!(f, "{}:{}::{}::", self.esi, self.ether_tag, self.mac)?;
+        if let Some(ip) = self.ip {
+            ip.fmt(f)?;
+        };
+        write!(f, " {}", self.labels)
     }
 }
 
@@ -210,7 +242,7 @@ impl BgpAddrItem<BgpEVPN3> for BgpEVPN3 {
 }
 impl std::fmt::Display for BgpEVPN3 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "<{}> {}:{}", self.rd, self.ether_tag, self.ip)
+        write!(f, "{}:{}:{}", self.rd, self.ether_tag, self.ip)
     }
 }
 
@@ -219,7 +251,7 @@ impl std::fmt::Display for BgpEVPN3 {
 pub struct BgpEVPN4 {
     pub rd: BgpRD,
     pub esi_type: u8,
-    pub esi: Vec<u8>,
+    pub esi: EVPNESI,
     pub ip: std::net::IpAddr,
 }
 impl BgpAddrItem<BgpEVPN4> for BgpEVPN4 {
@@ -250,7 +282,7 @@ impl BgpAddrItem<BgpEVPN4> for BgpEVPN4 {
             BgpEVPN4 {
                 rd: rdp.0,
                 esi_type: esitype,
-                esi: esib.to_vec(),
+                esi: EVPNESI::new(esib),
                 ip: epaddr,
             },
             sz,
@@ -264,7 +296,7 @@ impl std::fmt::Display for BgpEVPN4 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "<{}> {}:{:?}:{}",
+            "{}:{}:{}:{}",
             self.rd, self.esi_type, self.esi, self.ip
         )
     }
@@ -328,6 +360,20 @@ impl BgpAddrItem<BgpEVPN> for BgpEVPN {
 }
 
 #[cfg(feature = "serialization")]
+impl serde::Serialize for EVPNESI {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_seq(Some(self.v.len()))?;
+        for l in self.v.iter() {
+            state.serialize_element(&l)?;
+        };
+        state.end()
+    }
+}
+
+#[cfg(feature = "serialization")]
 impl serde::Serialize for BgpEVPN1 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -340,15 +386,6 @@ impl serde::Serialize for BgpEVPN1 {
         state.serialize_field("ether_tag", &self.ether_tag)?;
         state.serialize_field("labels", &self.labels)?;
         state.end()
-    }
-}
-#[cfg(feature = "serialization")]
-impl serde::Serialize for MacAddress {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.to_string().as_str())
     }
 }
 

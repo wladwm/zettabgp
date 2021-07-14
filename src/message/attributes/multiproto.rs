@@ -184,6 +184,7 @@ impl BgpAttr for BgpMPUpdates {
         buf[2]=afisafi.1;
         let mut curpos: usize = 4;
         let nhl=match &self.nexthop {
+            BgpAddr::None => 0,
             BgpAddr::V4(a) => {
                 encode_addrv4_to(&a, &mut buf[curpos..])?
             }
