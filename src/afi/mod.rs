@@ -287,6 +287,24 @@ impl BgpRD {
         Ok(8)
     }
 }
+impl std::str::FromStr for BgpRD {
+    type Err = std::num::ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<&str> = s.split(':').collect();
+        if parts.len() < 2 {
+            Ok(BgpRD {
+                rdh: parts[0].parse::<u32>()?,
+                rdl: 0,
+            })
+        } else {
+            Ok(BgpRD {
+                rdh: parts[0].parse::<u32>()?,
+                rdl: parts[1].parse::<u32>()?,
+            })
+        }
+    }
+}
 impl BgpAddrItem<BgpRD> for BgpRD {
     fn decode_from(_mode: BgpTransportMode, buf: &[u8]) -> Result<(BgpRD, usize), BgpError> {
         BgpRD::decode_rd_from(buf)
