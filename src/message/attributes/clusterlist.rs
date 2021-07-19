@@ -8,10 +8,9 @@
 
 //! BGP "cluster list" path attribute
 
-use crate::*;
 use crate::message::attributes::*;
 #[cfg(feature = "serialization")]
-use serde::ser::{SerializeSeq};
+use serde::ser::SerializeSeq;
 
 /// BGP clustr list path attribute struct
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -19,17 +18,14 @@ pub struct BgpClusterList {
     pub value: Vec<std::net::IpAddr>,
 }
 impl BgpClusterList {
-    pub fn decode_from(
-        peer: &BgpSessionParams,
-        buf: &[u8],
-    ) -> Result<BgpClusterList, BgpError> {
+    pub fn decode_from(peer: &BgpSessionParams, buf: &[u8]) -> Result<BgpClusterList, BgpError> {
         let mut pos: usize = 0;
         let mut v = Vec::new();
         let itemsize = match peer.peer_mode {
             BgpTransportMode::IPv4 => 4,
             BgpTransportMode::IPv6 => 16,
         };
-        while pos <= (buf.len() - itemsize) {
+        while (pos + itemsize) <= buf.len() {
             v.push(decode_addr_from(&buf[pos..(pos + itemsize)])?);
             pos += itemsize;
         }
@@ -55,14 +51,10 @@ impl BgpAttr for BgpClusterList {
             flags: 80,
         }
     }
-    fn encode_to(
-        &self,
-        _peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
+    fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
         let mut pos: usize = 0;
         for i in &self.value {
-            pos+=encode_addr_to(i, &mut buf[pos..])?;
+            pos += encode_addr_to(i, &mut buf[pos..])?;
         }
         Ok(pos)
     }
