@@ -18,9 +18,7 @@ pub struct BgpOriginatorID {
 }
 impl BgpOriginatorID {
     pub fn new(o: IpAddr) -> BgpOriginatorID {
-        BgpOriginatorID {
-            value: o,
-        }
+        BgpOriginatorID { value: o }
     }
     pub fn decode_from(peer: &BgpSessionParams, buf: &[u8]) -> Result<BgpOriginatorID, BgpError> {
         match peer.peer_mode {
@@ -28,14 +26,20 @@ impl BgpOriginatorID {
                 value: decode_addr_from(&buf[..4])?,
             }),
             BgpTransportMode::IPv6 => Ok(BgpOriginatorID {
-                value: decode_addr_from(&buf[..16])?,
+                value: if buf.len() < 16 {
+                    decode_addr_from(&buf[..4])?
+                } else {
+                    decode_addr_from(&buf[..16])?
+                },
             }),
         }
     }
 }
 impl std::fmt::Debug for BgpOriginatorID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("BgpOriginatorID").field("value", &self.value).finish()
+        f.debug_struct("BgpOriginatorID")
+            .field("value", &self.value)
+            .finish()
     }
 }
 impl std::fmt::Display for BgpOriginatorID {
