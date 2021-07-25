@@ -13,17 +13,17 @@ use crate::afi::*;
 //EVPN ESI field
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EVPNESI {
-    pub v: Vec<u8>
+    pub v: Vec<u8>,
 }
 impl EVPNESI {
     pub fn empty() -> EVPNESI {
-        EVPNESI{v: Vec::new()}
+        EVPNESI { v: Vec::new() }
     }
     pub fn new(src: &[u8]) -> EVPNESI {
-        EVPNESI{v: src.to_vec()}
+        EVPNESI { v: src.to_vec() }
     }
     pub fn is_zero(&self) -> bool {
-        self.v.iter().find(|x| (**x)!=0).is_none()
+        self.v.iter().find(|x| (**x) != 0).is_none()
     }
 }
 impl std::fmt::Display for EVPNESI {
@@ -32,8 +32,8 @@ impl std::fmt::Display for EVPNESI {
             Ok(())
         } else {
             for vl in self.v.iter() {
-                write!(f,"{} ",vl)?
-            };
+                write!(f, "{:02x}", vl)?;
+            }
             Ok(())
         }
     }
@@ -78,7 +78,7 @@ impl std::fmt::Display for BgpEVPN1 {
         if self.esi_type != 0 {
             write!(f, "{}:", self.esi_type)?;
         }
-        write!(f, "{}:{} {}", self.esi, self.ether_tag,self.labels)
+        write!(f, "{}:{:08x} {}", self.esi, self.ether_tag, self.labels)
     }
 }
 
@@ -191,7 +191,7 @@ impl std::fmt::Display for BgpEVPN2 {
         if self.esi_type != 0 {
             write!(f, "{}:", self.esi_type)?;
         }
-        write!(f, "{}:{}::{}::", self.esi, self.ether_tag, self.mac)?;
+        write!(f, "{}:{:08x}::{}::", self.esi, self.ether_tag, self.mac)?;
         if let Some(ip) = self.ip {
             ip.fmt(f)?;
         };
@@ -242,7 +242,7 @@ impl BgpAddrItem<BgpEVPN3> for BgpEVPN3 {
 }
 impl std::fmt::Display for BgpEVPN3 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}:{}:{}", self.rd, self.ether_tag, self.ip)
+        write!(f, "{}:{:08x}:{}", self.rd, self.ether_tag, self.ip)
     }
 }
 
@@ -294,11 +294,7 @@ impl BgpAddrItem<BgpEVPN4> for BgpEVPN4 {
 }
 impl std::fmt::Display for BgpEVPN4 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}:{}:{}:{}",
-            self.rd, self.esi_type, self.esi, self.ip
-        )
+        write!(f, "{}:{}:{}:{}", self.rd, self.esi_type, self.esi, self.ip)
     }
 }
 
@@ -368,7 +364,7 @@ impl serde::Serialize for EVPNESI {
         let mut state = serializer.serialize_seq(Some(self.v.len()))?;
         for l in self.v.iter() {
             state.serialize_element(&l)?;
-        };
+        }
         state.end()
     }
 }

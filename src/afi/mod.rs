@@ -10,15 +10,17 @@
 use crate::util::*;
 use crate::*;
 #[cfg(feature = "serialization")]
-use serde::ser::{SerializeSeq, SerializeStruct};
-#[cfg(feature = "serialization")]
 use serde::de::{self, Visitor};
+#[cfg(feature = "serialization")]
+use serde::ser::{SerializeSeq, SerializeStruct};
 
 use std::cmp::Ordering;
 pub mod ipv4;
 pub use ipv4::*;
 pub mod ipv6;
 pub use ipv6::*;
+pub mod mac;
+pub use mac::*;
 pub mod mvpn;
 pub use mvpn::*;
 pub mod vpls;
@@ -60,60 +62,56 @@ pub enum BgpNet {
     V4(BgpAddrV4),
     /// ipv6 prefix
     V6(BgpAddrV6),
+    /// mac prefix
+    MAC(BgpAddrMac),
 }
 
 impl BgpNet {
     /// New net
     pub fn new(addr: std::net::IpAddr, prefixlen: u8) -> BgpNet {
         match addr {
-            std::net::IpAddr::V4(ip4) => BgpNet::V4(BgpAddrV4::new(ip4,prefixlen)),
-            std::net::IpAddr::V6(ip6) => BgpNet::V6(BgpAddrV6::new(ip6,prefixlen))
+            std::net::IpAddr::V4(ip4) => BgpNet::V4(BgpAddrV4::new(ip4, prefixlen)),
+            std::net::IpAddr::V6(ip6) => BgpNet::V6(BgpAddrV6::new(ip6, prefixlen)),
         }
     }
     /// Check if given subnet is in this subnet
-    /// ```
-    /// use std::net::Ipv4Addr;
-    /// use zettabgp::prelude::BgpAddrV4;
-    ///
-    /// assert!(BgpAddrV4::new(Ipv4Addr::new(192,168,0,0),16).contains(&BgpAddrV4::new(Ipv4Addr::new(192,168,0,0),24)));
-    /// ```
     pub fn contains(&self, a: &BgpNet) -> bool {
         match self {
-            BgpNet::V4(s4) => {
-                match a {
-                    BgpNet::V4(a4) => s4.contains(a4),
-                    _ => false
-                }
+            BgpNet::V4(s4) => match a {
+                BgpNet::V4(a4) => s4.contains(a4),
+                _ => false,
             },
-            BgpNet::V6(s6) => {
-                match a {
-                    BgpNet::V6(a6) => s6.contains(a6),
-                    _ => false
-                }
-            }
+            BgpNet::V6(s6) => match a {
+                BgpNet::V6(a6) => s6.contains(a6),
+                _ => false,
+            },
+            BgpNet::MAC(sm) => match a {
+                BgpNet::MAC(am) => sm.contains(am),
+                _ => false,
+            },
         }
     }
 }
 
 impl std::str::FromStr for BgpNet {
-    type Err = std::net::AddrParseError;
+    type Err = BgpError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(ip4) = s.parse::<BgpAddrV4>() {
-            return Ok(BgpNet::V4(ip4))   
+            return Ok(BgpNet::V4(ip4));
         };
-        Ok(BgpNet::V6(s.parse::<BgpAddrV6>()?))
+        if let Ok(ip6) = s.parse::<BgpAddrV6>() {
+            return Ok(BgpNet::V6(ip6));
+        };
+        Ok(BgpNet::MAC(s.parse::<BgpAddrMac>()?))
     }
 }
 impl std::fmt::Display for BgpNet {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            BgpNet::V4(s4) => {
-                s4.fmt(f)
-            },
-            BgpNet::V6(s6) => {
-                s6.fmt(f)
-            }
+            BgpNet::V4(s4) => s4.fmt(f),
+            BgpNet::V6(s6) => s6.fmt(f),
+            BgpNet::MAC(sm) => sm.fmt(f),
         }
     }
 }
@@ -133,12 +131,12 @@ struct BgpNetVisitor;
 impl<'de> Visitor<'de> for BgpNetVisitor {
     type Value = BgpNet;
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("a ipv4/ipv6 prefix")
+        formatter.write_str("a ipv4/ipv6/mac prefix")
     }
     fn visit_str<E>(self, value: &str) -> Result<BgpNet, E>
-                    where
-                        E: serde::de::Error,
-                    {
+    where
+        E: serde::de::Error,
+    {
         value.parse::<BgpNet>().map_err(de::Error::custom)
     }
 }
@@ -172,6 +170,16 @@ pub enum BgpAddrs {
     FS4U(Vec<BgpFlowSpec<BgpAddrV4>>),
     FS6U(Vec<BgpFlowSpec<FS6>>),
     FSV4U(Vec<BgpFlowSpec<FSV4U>>),
+    IPV4UP(Vec<WithPathId<BgpAddrV4>>),
+    IPV4MP(Vec<WithPathId<BgpAddrV4>>),
+    IPV4LUP(Vec<WithPathId<Labeled<BgpAddrV4>>>),
+    VPNV4UP(Vec<WithPathId<Labeled<WithRd<BgpAddrV4>>>>),
+    VPNV4MP(Vec<WithPathId<Labeled<WithRd<BgpAddrV4>>>>),
+    IPV6UP(Vec<WithPathId<BgpAddrV6>>),
+    IPV6MP(Vec<WithPathId<BgpAddrV6>>),
+    IPV6LUP(Vec<WithPathId<Labeled<BgpAddrV6>>>),
+    VPNV6UP(Vec<WithPathId<Labeled<WithRd<BgpAddrV6>>>>),
+    VPNV6MP(Vec<WithPathId<Labeled<WithRd<BgpAddrV6>>>>),
 }
 
 pub fn decode_bgpitem_from<T: BgpItem<T>>(buf: &[u8]) -> Result<(T, usize), BgpError> {
@@ -248,6 +256,34 @@ pub fn encode_long_bgpitems_to<T: BgpItemLong<T>>(
         curpos += sz;
     }
     Ok(curpos)
+}
+pub fn decode_pathid_bgpitems_from<T: BgpItem<T> + Clone + PartialEq + Eq + PartialOrd>(
+    buf: &[u8],
+) -> Result<(Vec<WithPathId<T>>, usize), BgpError> {
+    let mut v = Vec::<WithPathId<T>>::new();
+    let mut curpos = 0;
+    while (curpos+4) < buf.len() {
+        let pathid = getn_u32(&buf[curpos..]);
+        curpos += 4;
+        let nlri = decode_bgpitem_from(&buf[curpos..])?;
+        v.push(WithPathId::<T>::new(pathid, nlri.0));
+        curpos += nlri.1;
+    }
+    return Ok((v, curpos));
+}
+pub fn encode_pathid_bgpitems_to<T: BgpItem<T> + Clone + PartialEq + Eq + PartialOrd>(
+    v: &Vec<WithPathId<T>>,
+    buf: &mut [u8],
+) -> Result<usize, BgpError> {
+    let mut curpos = 0;
+    for i in v.iter() {
+        setn_u32(i.pathid, &mut buf[curpos..]);
+        curpos += 4;
+        let r = i.nlri.set_bits_to(&mut buf[curpos + 1..])?;
+        buf[curpos] = r.0;
+        curpos += r.1 + 1;
+    }
+    return Ok(curpos);
 }
 /// BGP VPN route distinguisher
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -382,7 +418,16 @@ impl PartialEq for MplsLabels {
 }
 impl std::fmt::Display for MplsLabels {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?}", self.labels)
+        //write!(f, "{:?}", self.labels)
+        let mut first:bool=true;
+        for l in self.labels.iter() {
+            if !first {
+                ",".fmt(f)?;
+            }
+            l.fmt(f)?;
+            first=false;
+        }
+        Ok(())
     }
 }
 
@@ -567,6 +612,57 @@ impl<T: BgpItem<T> + std::fmt::Display> std::fmt::Display for WithRd<T> {
         }
     }
 }
+pub type BgpPathId = u32;
+/// NRI with PathId
+#[derive(Clone, PartialEq, Eq, Ord)]
+pub struct WithPathId<T: Clone + PartialEq + Eq + PartialOrd> {
+    pub pathid: BgpPathId,
+    pub nlri: T,
+}
+impl<T: Clone + PartialEq + Eq + PartialOrd + std::hash::Hash> std::hash::Hash for WithPathId<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.pathid.hash(state);
+        self.nlri.hash(state);
+    }
+}
+impl<T: Clone + PartialEq + Eq + PartialOrd> WithPathId<T> {
+    pub fn new(pathid: BgpPathId, inner: T) -> WithPathId<T> {
+        WithPathId {
+            pathid: pathid,
+            nlri: inner,
+        }
+    }
+}
+impl<T: Clone + PartialEq + Eq + PartialOrd> PartialOrd for WithPathId<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self.nlri.partial_cmp(&other.nlri) {
+            None => self.pathid.partial_cmp(&other.pathid),
+            Some(pc) => match pc {
+                Ordering::Less => Some(Ordering::Less),
+                Ordering::Greater => Some(Ordering::Greater),
+                Ordering::Equal => self.pathid.partial_cmp(&other.pathid),
+            },
+        }
+    }
+}
+
+impl<T: Clone + PartialEq + Eq + PartialOrd + std::fmt::Debug> std::fmt::Debug for WithPathId<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WithPathId")
+            .field("pathid", &self.pathid)
+            .field("nlri", &self.nlri)
+            .finish()
+    }
+}
+impl<T: Clone + PartialEq + Eq + PartialOrd + std::fmt::Display> std::fmt::Display for WithPathId<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if self.pathid == 0 {
+            self.nlri.fmt(f)
+        } else {
+            write!(f, "<pathid:{}> {}", self.pathid, self.nlri)
+        }
+    }
+}
 
 impl BgpAddrs {
     /// creates a new empty BgpAddrs
@@ -593,6 +689,16 @@ impl BgpAddrs {
             BgpAddrs::FS4U(v) => v.len(),
             BgpAddrs::FS6U(v) => v.len(),
             BgpAddrs::FSV4U(v) => v.len(),
+            BgpAddrs::IPV4UP(v) => v.len(),
+            BgpAddrs::IPV4MP(v) => v.len(),
+            BgpAddrs::IPV4LUP(v) => v.len(),
+            BgpAddrs::VPNV4UP(v) => v.len(),
+            BgpAddrs::VPNV4MP(v) => v.len(),
+            BgpAddrs::IPV6UP(v) => v.len(),
+            BgpAddrs::IPV6MP(v) => v.len(),
+            BgpAddrs::IPV6LUP(v) => v.len(),
+            BgpAddrs::VPNV6UP(v) => v.len(),
+            BgpAddrs::VPNV6MP(v) => v.len(),
         }
     }
     /// returns BGP afi+safi codes
@@ -615,6 +721,16 @@ impl BgpAddrs {
             BgpAddrs::VPNV6M(_) => (2, 129),
             BgpAddrs::L2VPLS(_) => (25, 65),
             BgpAddrs::EVPN(_) => (25, 70),
+            BgpAddrs::IPV4UP(_) => (1, 1),
+            BgpAddrs::IPV4MP(_) => (1, 2),
+            BgpAddrs::IPV4LUP(_) => (1, 4),
+            BgpAddrs::VPNV4UP(_) => (1, 128),
+            BgpAddrs::VPNV4MP(_) => (1, 129),
+            BgpAddrs::IPV6UP(_) => (2, 1),
+            BgpAddrs::IPV6MP(_) => (2, 2),
+            BgpAddrs::IPV6LUP(_) => (2, 4),
+            BgpAddrs::VPNV6UP(_) => (2, 128),
+            BgpAddrs::VPNV6MP(_) => (2, 129),
         }
     }
     pub fn decode_from(
@@ -629,18 +745,33 @@ impl BgpAddrs {
                 match safi {
                     1 => {
                         //unicast
-                        let r = decode_bgpitems_from(buf)?;
-                        return Ok((BgpAddrs::IPV4U(r.0), r.1));
+                        if peer.check_addpath_receive(afi, safi) {
+                            let r = decode_pathid_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::IPV4UP(r.0), r.1));
+                        } else {
+                            let r = decode_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::IPV4U(r.0), r.1));
+                        }
                     }
                     2 => {
                         //multicast
-                        let r = decode_bgpitems_from(buf)?;
-                        return Ok((BgpAddrs::IPV4M(r.0), r.1));
+                        if peer.check_addpath_receive(afi, safi) {
+                            let r = decode_pathid_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::IPV4MP(r.0), r.1));
+                        } else {
+                            let r = decode_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::IPV4M(r.0), r.1));
+                        }
                     }
                     4 => {
                         //labeled unicast
-                        let r = decode_bgpitems_from(buf)?;
-                        return Ok((BgpAddrs::IPV4LU(r.0), r.1));
+                        if peer.check_addpath_receive(afi, safi) {
+                            let r = decode_pathid_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::IPV4LUP(r.0), r.1));
+                        } else {
+                            let r = decode_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::IPV4LU(r.0), r.1));
+                        }
                     }
                     5 => {
                         //mvpn v4
@@ -655,13 +786,23 @@ impl BgpAddrs {
                     }
                     128 => {
                         //vpnv4 unicast
-                        let r = decode_bgpitems_from(buf)?;
-                        return Ok((BgpAddrs::VPNV4U(r.0), r.1));
+                        if peer.check_addpath_receive(afi, safi) {
+                            let r = decode_pathid_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::VPNV4UP(r.0), r.1));
+                        } else {
+                            let r = decode_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::VPNV4U(r.0), r.1));
+                        }
                     }
                     129 => {
                         //vpnv4 multicast
-                        let r = decode_bgpitems_from(buf)?;
-                        return Ok((BgpAddrs::VPNV4M(r.0), r.1));
+                        if peer.check_addpath_receive(afi, safi) {
+                            let r = decode_pathid_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::VPNV4MP(r.0), r.1));
+                        } else {
+                            let r = decode_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::VPNV4M(r.0), r.1));
+                        }
                     }
                     133 => {
                         //ip4u flowspec
@@ -686,28 +827,53 @@ impl BgpAddrs {
                 match safi {
                     1 => {
                         //unicast
-                        let r = decode_bgpitems_from(buf)?;
-                        return Ok((BgpAddrs::IPV6U(r.0), r.1));
+                        if peer.check_addpath_receive(afi, safi) {
+                            let r = decode_pathid_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::IPV6UP(r.0), r.1));
+                        } else {
+                            let r = decode_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::IPV6U(r.0), r.1));
+                        }
                     }
                     2 => {
                         //multicast
-                        let r = decode_bgpitems_from(buf)?;
-                        return Ok((BgpAddrs::IPV6M(r.0), r.1));
+                        if peer.check_addpath_receive(afi, safi) {
+                            let r = decode_pathid_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::IPV6MP(r.0), r.1));
+                        } else {
+                            let r = decode_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::IPV6M(r.0), r.1));
+                        }
                     }
                     4 => {
                         //labeled unicast
-                        let r = decode_bgpitems_from(buf)?;
-                        return Ok((BgpAddrs::IPV6LU(r.0), r.1));
+                        if peer.check_addpath_receive(afi, safi) {
+                            let r = decode_pathid_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::IPV6LUP(r.0), r.1));
+                        } else {
+                            let r = decode_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::IPV6LU(r.0), r.1));
+                        }
                     }
                     128 => {
                         //vpnv6 unicast
-                        let r = decode_bgpitems_from(buf)?;
-                        return Ok((BgpAddrs::VPNV6U(r.0), r.1));
+                        if peer.check_addpath_receive(afi, safi) {
+                            let r = decode_pathid_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::VPNV6UP(r.0), r.1));
+                        } else {
+                            let r = decode_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::VPNV6U(r.0), r.1));
+                        }
                     }
                     129 => {
                         //vpnv6 multicast
-                        let r = decode_bgpitems_from(buf)?;
-                        return Ok((BgpAddrs::VPNV6M(r.0), r.1));
+                        if peer.check_addpath_receive(afi, safi) {
+                            let r = decode_pathid_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::VPNV6MP(r.0), r.1));
+                        } else {
+                            let r = decode_bgpitems_from(buf)?;
+                            return Ok((BgpAddrs::VPNV6M(r.0), r.1));
+                        }
                     }
                     133 => {
                         //ip6u flowspec
@@ -765,6 +931,16 @@ impl BgpAddrs {
             BgpAddrs::VPNV6M(v) => encode_bgpitems_to(v, buf),
             BgpAddrs::L2VPLS(v) => encode_long_bgpitems_to(v, buf),
             BgpAddrs::EVPN(v) => encode_bgpaddritems_to(v, peer.peer_mode, buf),
+            BgpAddrs::IPV4UP(v) => encode_pathid_bgpitems_to(v, buf),
+            BgpAddrs::IPV4MP(v) => encode_pathid_bgpitems_to(v, buf),
+            BgpAddrs::IPV4LUP(v) => encode_pathid_bgpitems_to(v, buf),
+            BgpAddrs::VPNV4UP(v) => encode_pathid_bgpitems_to(v, buf),
+            BgpAddrs::VPNV4MP(v) => encode_pathid_bgpitems_to(v, buf),
+            BgpAddrs::IPV6UP(v) => encode_pathid_bgpitems_to(v, buf),
+            BgpAddrs::IPV6MP(v) => encode_pathid_bgpitems_to(v, buf),
+            BgpAddrs::IPV6LUP(v) => encode_pathid_bgpitems_to(v, buf),
+            BgpAddrs::VPNV6UP(v) => encode_pathid_bgpitems_to(v, buf),
+            BgpAddrs::VPNV6MP(v) => encode_pathid_bgpitems_to(v, buf),
         }
     }
 }
@@ -822,6 +998,18 @@ impl<T: BgpItem<T> + std::fmt::Debug + serde::Serialize> serde::Serialize for La
         let mut state = serializer.serialize_struct("Labeled", 2)?;
         state.serialize_field("labels", &self.labels)?;
         state.serialize_field("prefix", &self.prefix)?;
+        state.end()
+    }
+}
+#[cfg(feature = "serialization")]
+impl<T: BgpItem<T> + serde::Serialize + Clone + PartialEq + Eq + PartialOrd> serde::Serialize for WithPathId<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("WithPathId", 2)?;
+        state.serialize_field("pathid", &self.pathid)?;
+        state.serialize_field("nlri", &self.nlri)?;
         state.end()
     }
 }

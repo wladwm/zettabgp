@@ -68,3 +68,10 @@ impl From<std::io::Error> for BgpError {
     }
 }
 
+impl From<std::net::AddrParseError> for BgpError {
+    #[inline]
+    fn from(error: std::net::AddrParseError) -> Self {
+        BgpError::Other(Box::new(error))
+    }
+}
+

@@ -132,16 +132,25 @@ impl BgpMessage for BgpUpdateMessage {
         let mut curpos: usize = 0;
         let withdraws_length = getn_u16(&buf[curpos..(curpos + 2)]) as usize;
         curpos += 2;
-        //println!("Withdraws length: {:?}", withdraws_length);
         let withdraws_end = curpos + withdraws_length;
         match peer.peer_mode {
             BgpTransportMode::IPv4 => {
-                let r = decode_bgpitems_from(&buf[curpos..withdraws_end])?;
-                self.withdraws = BgpAddrs::IPV4U(r.0);
+                if peer.check_addpath_receive(1, 1) {
+                    let r = decode_pathid_bgpitems_from(&buf[curpos..withdraws_end])?;
+                    self.withdraws = BgpAddrs::IPV4UP(r.0);
+                } else {
+                    let r = decode_bgpitems_from(&buf[curpos..withdraws_end])?;
+                    self.withdraws = BgpAddrs::IPV4U(r.0);
+                }
             }
             BgpTransportMode::IPv6 => {
-                let r = decode_bgpitems_from(&buf[curpos..withdraws_end])?;
-                self.withdraws = BgpAddrs::IPV6U(r.0);
+                if peer.check_addpath_receive(2, 1) {
+                    let r = decode_pathid_bgpitems_from(&buf[curpos..withdraws_end])?;
+                    self.withdraws = BgpAddrs::IPV6UP(r.0);
+                } else {
+                    let r = decode_bgpitems_from(&buf[curpos..withdraws_end])?;
+                    self.withdraws = BgpAddrs::IPV6U(r.0);
+                }
             }
         };
         curpos = withdraws_end;
@@ -180,12 +189,22 @@ impl BgpMessage for BgpUpdateMessage {
         }
         match peer.peer_mode {
             BgpTransportMode::IPv4 => {
-                let r = decode_bgpitems_from(&buf[curpos..])?;
-                self.updates = BgpAddrs::IPV4U(r.0);
+                if peer.check_addpath_receive(1, 1) {
+                    let r = decode_pathid_bgpitems_from(&buf[curpos..])?;
+                    self.updates = BgpAddrs::IPV4UP(r.0);
+                } else {
+                    let r = decode_bgpitems_from(&buf[curpos..])?;
+                    self.updates = BgpAddrs::IPV4U(r.0);
+                }
             }
             BgpTransportMode::IPv6 => {
-                let r = decode_bgpitems_from(&buf[curpos..])?;
-                self.updates = BgpAddrs::IPV6U(r.0);
+                if peer.check_addpath_receive(2, 1) {
+                    let r = decode_pathid_bgpitems_from(&buf[curpos..])?;
+                    self.updates = BgpAddrs::IPV6UP(r.0);
+                } else {
+                    let r = decode_bgpitems_from(&buf[curpos..])?;
+                    self.updates = BgpAddrs::IPV6U(r.0);
+                }
             }
         };
         //println!("Update: {:?}", self);
@@ -195,32 +214,50 @@ impl BgpMessage for BgpUpdateMessage {
         let mut curpos: usize = 0;
         //withdraws main
         match peer.peer_mode {
-            BgpTransportMode::IPv4 => {
-                if let BgpAddrs::IPV4U(wdrw) = &self.withdraws {
+            BgpTransportMode::IPv4 => match self.withdraws {
+                BgpAddrs::IPV4U(ref wdrw) => {
                     let wlen = encode_bgpitems_to(&wdrw, &mut buf[curpos + 2..])?;
                     if wlen > 65535 {
                         return Err(BgpError::too_many_data());
                     }
                     setn_u16(wlen as u16, &mut buf[curpos..]);
                     curpos += 2 + wlen;
-                } else {
+                }
+                BgpAddrs::IPV4UP(ref wdrw) => {
+                    let wlen = encode_pathid_bgpitems_to(&wdrw, &mut buf[curpos + 2..])?;
+                    if wlen > 65535 {
+                        return Err(BgpError::too_many_data());
+                    }
+                    setn_u16(wlen as u16, &mut buf[curpos..]);
+                    curpos += 2 + wlen;
+                }
+                _ => {
                     setn_u16(0, buf);
                     curpos = 2;
                 }
-            }
-            BgpTransportMode::IPv6 => {
-                if let BgpAddrs::IPV6U(wdrw) = &self.withdraws {
+            },
+            BgpTransportMode::IPv6 => match self.withdraws {
+                BgpAddrs::IPV6U(ref wdrw) => {
                     let wlen = encode_bgpitems_to(&wdrw, &mut buf[curpos + 2..])?;
                     if wlen > 65535 {
                         return Err(BgpError::too_many_data());
                     }
                     setn_u16(wlen as u16, &mut buf[curpos..]);
                     curpos += 2 + wlen;
-                } else {
+                }
+                BgpAddrs::IPV6UP(ref wdrw) => {
+                    let wlen = encode_pathid_bgpitems_to(&wdrw, &mut buf[curpos + 2..])?;
+                    if wlen > 65535 {
+                        return Err(BgpError::too_many_data());
+                    }
+                    setn_u16(wlen as u16, &mut buf[curpos..]);
+                    curpos += 2 + wlen;
+                }
+                _ => {
                     setn_u16(0, buf);
                     curpos = 2;
                 }
-            }
+            },
         };
         let pathattrlen_pos = curpos;
         curpos += 2;
@@ -235,16 +272,24 @@ impl BgpMessage for BgpUpdateMessage {
             &mut buf[pathattrlen_pos..(pathattrlen_pos + 2)],
         );
         match peer.peer_mode {
-            BgpTransportMode::IPv4 => {
-                if let BgpAddrs::IPV4U(upds) = &self.updates {
+            BgpTransportMode::IPv4 => match self.updates {
+                BgpAddrs::IPV4U(ref upds) => {
                     curpos += encode_bgpitems_to(&upds, &mut buf[curpos..])?;
                 }
-            }
-            BgpTransportMode::IPv6 => {
-                if let BgpAddrs::IPV6U(upds) = &self.updates {
+                BgpAddrs::IPV4UP(ref upds) => {
+                    curpos += encode_pathid_bgpitems_to(&upds, &mut buf[curpos..])?;
+                }
+                _ => {}
+            },
+            BgpTransportMode::IPv6 => match self.updates {
+                BgpAddrs::IPV6U(ref upds) => {
                     curpos += encode_bgpitems_to(&upds, &mut buf[curpos..])?;
                 }
-            }
+                BgpAddrs::IPV6UP(ref upds) => {
+                    curpos += encode_pathid_bgpitems_to(&upds, &mut buf[curpos..])?;
+                }
+                _ => {}
+            },
         };
         Ok(curpos)
     }

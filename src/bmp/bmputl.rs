@@ -10,6 +10,7 @@
 
 use crate::afi::*;
 use crate::*;
+use std::cmp::Ordering;
 
 pub fn decode_bmp_addr_from(buf: &[u8]) -> Result<std::net::IpAddr, BgpError> {
     if buf.len() < 16 {
@@ -51,18 +52,7 @@ pub struct BmpMessagePeerHeader {
     /// timestamp
     pub timestamp: u64,
 }
-impl From<&BmpMessagePeerHeader> for BgpSessionParams {
-    #[inline]
-    fn from(bmph: &BmpMessagePeerHeader) -> BgpSessionParams {
-        BgpSessionParams::new(
-            bmph.asnum,
-            0,
-            bmph.peeraddress.into(),
-            bmph.routerid,
-            std::collections::HashSet::new(),
-        )
-    }
-}
+
 impl BmpMessagePeerHeader {
     pub fn decode_from(buf: &[u8]) -> Result<(BmpMessagePeerHeader, usize), BgpError> {
         if buf.len() < 42 {
@@ -80,5 +70,94 @@ impl BmpMessagePeerHeader {
             },
             42,
         ))
+    }
+}
+impl PartialOrd for BmpMessagePeerHeader {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if let Some(pc) = self.peertype.partial_cmp(&other.peertype) {
+            match pc {
+                Ordering::Less => return Some(Ordering::Less),
+                Ordering::Greater => return Some(Ordering::Greater),
+                Ordering::Equal => {},
+            }
+        };
+        if let Some(pc) = self.flags.partial_cmp(&other.flags) {
+            match pc {
+                Ordering::Less => return Some(Ordering::Less),
+                Ordering::Greater => return Some(Ordering::Greater),
+                Ordering::Equal => {},
+            }
+        };
+        if let Some(pc) = self.peerdistinguisher.partial_cmp(&other.peerdistinguisher) {
+            match pc {
+                Ordering::Less => return Some(Ordering::Less),
+                Ordering::Greater => return Some(Ordering::Greater),
+                Ordering::Equal => {},
+            }
+        };
+        if let Some(pc) = self.peeraddress.partial_cmp(&other.peeraddress) {
+            match pc {
+                Ordering::Less => return Some(Ordering::Less),
+                Ordering::Greater => return Some(Ordering::Greater),
+                Ordering::Equal => {},
+            }
+        };
+        if let Some(pc) = self.asnum.partial_cmp(&other.asnum) {
+            match pc {
+                Ordering::Less => return Some(Ordering::Less),
+                Ordering::Greater => return Some(Ordering::Greater),
+                Ordering::Equal => {},
+            }
+        };
+        self.routerid.partial_cmp(&other.routerid)
+    }
+}
+impl Ord for BmpMessagePeerHeader {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.peertype.cmp(&other.peertype) {
+            Ordering::Equal => {},
+            x => return x,
+        };
+        match self.flags.cmp(&other.flags) {
+            Ordering::Equal => {},
+            x => return x,
+        };
+        match self.peerdistinguisher.cmp(&other.peerdistinguisher) {
+            Ordering::Equal => {},
+            x => return x,
+        };
+        match self.peeraddress.cmp(&other.peeraddress) {
+            Ordering::Equal => {},
+            x => return x,
+        };
+        match self.asnum.cmp(&other.asnum) {
+            Ordering::Equal => {},
+            x => return x,
+        };
+        self.routerid.cmp(&other.routerid)
+    }
+}
+
+impl PartialEq for BmpMessagePeerHeader {
+    fn eq(&self, other: &Self) -> bool {
+        self.peertype == other.peertype
+            && self.flags == other.flags
+            && self.peerdistinguisher == other.peerdistinguisher
+            && self.peeraddress == other.peeraddress
+            && self.asnum == other.asnum
+            && self.routerid == other.routerid
+    }
+}
+impl Eq for BmpMessagePeerHeader {}
+impl From<&BmpMessagePeerHeader> for BgpSessionParams {
+    #[inline]
+    fn from(bmph: &BmpMessagePeerHeader) -> BgpSessionParams {
+        BgpSessionParams::new(
+            bmph.asnum,
+            0,
+            bmph.peeraddress.into(),
+            bmph.routerid,
+            Vec::new(),
+        )
     }
 }

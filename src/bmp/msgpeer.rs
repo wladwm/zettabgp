@@ -35,7 +35,7 @@ impl BmpMessagePeerUp {
             msg1: BgpOpenMessage::new(),
             msg2: BgpOpenMessage::new(),
         };
-        let sesspars=BgpSessionParams::new(ret.peer.asnum, 180, ret.peer.peeraddress.into(), ret.peer.routerid, std::collections::HashSet::new());
+        let sesspars=BgpSessionParams::new(ret.peer.asnum, 180, ret.peer.peeraddress.into(), ret.peer.routerid, Vec::new());
         let mut pos:usize=pm.1+20;
         let msgt=sesspars.decode_message_head(&buf[pos..])?;
         pos+=19;

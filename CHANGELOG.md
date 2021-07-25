@@ -1,3 +1,12 @@
+### 0.2.0 (2021-07-25)
+
+#### Features
+
+* AddPath support
+* afi::BgpNet support for MAC prefixes
+* extcommunity varieties extended
+
+
 ### 0.1.5 (2021-07-19)
 
 #### Features
@@ -12,7 +21,7 @@
 
 #### Features
 
-* EVPN display imporoved, MacAddress display imporoved. ([83ac56c]https://github.com/wladwm/zettabgp/commit/83ac56ce9af94d628877f48fc7b3f9be4cb05200))
+* EVPN display improved, MacAddress display improved. ([83ac56c]https://github.com/wladwm/zettabgp/commit/83ac56ce9af94d628877f48fc7b3f9be4cb05200))
 
 ### 0.1.3 (2021-07-13)
 

@@ -8,9 +8,8 @@
 
 //! BGP PMSI tunnel path attribute - used for MVPN and EVPN
 
-use crate::*;
+use crate::afi::{BgpItem, MplsLabels};
 use crate::message::attributes::*;
-use crate::afi::{BgpItem,MplsLabels};
 
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct BgpPMSITaRSVP {
@@ -34,11 +33,7 @@ pub struct BgpPMSITaIngressRepl {
 }
 impl std::fmt::Display for BgpPMSITaIngressRepl {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "Ingress replication:{}",
-            self.endpoint
-        )
+        write!(f, "Ingress replication:{}", self.endpoint)
     }
 }
 
@@ -47,7 +42,7 @@ impl std::fmt::Display for BgpPMSITaIngressRepl {
 pub enum BgpPMSITunnelAttr {
     None,
     RSVPTe(BgpPMSITaRSVP),
-    IngressRepl(BgpPMSITaIngressRepl)
+    IngressRepl(BgpPMSITaIngressRepl),
 }
 impl std::fmt::Display for BgpPMSITunnelAttr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -68,10 +63,7 @@ pub struct BgpPMSITunnel {
     pub tunnel_attribute: BgpPMSITunnelAttr,
 }
 impl BgpPMSITunnel {
-    pub fn decode_from(
-        _peer: &BgpSessionParams,
-        buf: &[u8],
-    ) -> Result<BgpPMSITunnel, BgpError> {
+    pub fn decode_from(_peer: &BgpSessionParams, buf: &[u8]) -> Result<BgpPMSITunnel, BgpError> {
         if buf.len() < 5 {
             return Err(BgpError::static_str("Invalid PMSI buffer length"));
         }
@@ -112,7 +104,7 @@ impl BgpPMSITunnel {
                             buf[curpos + 1],
                             buf[curpos + 2],
                             buf[curpos + 3],
-                        )
+                        ),
                     })
                 }
                 _ => {
@@ -139,7 +131,7 @@ impl std::fmt::Display for BgpPMSITunnel {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "BgpPMSITunnel flags={} type={} label={:?} attribute={}",
+            "BgpPMSITunnel flags={} type={} label={} attribute={}",
             self.flags, self.tunnel_type, self.label, self.tunnel_attribute
         )
     }
@@ -151,11 +143,7 @@ impl BgpAttr for BgpPMSITunnel {
             flags: 192,
         }
     }
-    fn encode_to(
-        &self,
-        _peer: &BgpSessionParams,
-        _buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
+    fn encode_to(&self, _peer: &BgpSessionParams, _buf: &mut [u8]) -> Result<usize, BgpError> {
         unimplemented!();
     }
 }

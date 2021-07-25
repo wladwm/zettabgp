@@ -110,7 +110,7 @@ impl std::fmt::Display for BgpExtCommunity {
             //as-specific
             write!(
                 f,
-                "ext-as-specific:{}:{}:{}:{}",
+                "ext-as-specific:0x{:x}:0x{:x}:0x{:x}:0x{:x}",
                 self.ctype, self.subtype, self.a, self.b
             )
         } else if self.subtype == 10 && (self.ctype == 1 || self.ctype == 0x41) {
@@ -119,20 +119,34 @@ impl std::fmt::Display for BgpExtCommunity {
             //ipv4-specific
             write!(
                 f,
-                "ext-ipv4a-specific:{}:{}:{}:{}",
+                "ext-ipv4a-specific:0x{:x}:0x{:x}:0x{:x}:0x{:x}",
                 self.ctype, self.subtype, self.a, self.b
+            )
+        } else if self.ctype == 3 && self.subtype == 12 {
+            write!(f, "encapsulation:0x{:x}", self.b)
+        } else if self.ctype == 6 && self.subtype == 0x4 {
+            //evpn-l2-attr
+            write!(f, "evpn-l2-info:cf={}:mtu={}", self.a, self.b >> 16)
+        } else if self.ctype == 6 && self.subtype == 1 {
+            //esi-label
+            write!(
+                f,
+                "esi-label:{}:label={}:{}",
+                self.a,
+                self.b >> 8,
+                self.b & 0xff
             )
         } else if self.ctype == 3 || self.ctype == 0x43 {
             //opaque
             write!(
                 f,
-                "ext-opaque:{}:{}:{}:{}",
+                "ext-opaque:0x{:02x}:0x{:02x}:0x{:x}:0x{:x}",
                 self.ctype, self.subtype, self.a, self.b
             )
         } else {
             write!(
                 f,
-                "ext-unknown:{}:{}:{}:{}",
+                "ext-unknown:0x{:02x}:0x{:02x}:0x{:x}:0x{:x}",
                 self.ctype, self.subtype, self.a, self.b
             )
         }

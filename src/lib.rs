@@ -130,63 +130,83 @@ pub trait BgpMessage {
     fn encode_to(&self, peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError>;
 }
 
-/// Six-byte ethernet mac address. Used in EVPN.
-#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MacAddress {
-    pub mac_address: [u8; 6],
+/// BGP capability AddPath.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BgpCapAddPath {
+    pub afi: u16,
+    pub safi: u8,
+    pub send: bool,
+    pub receive: bool,
 }
-impl MacAddress {
-    /// Construct new zero mac address.
-    pub fn new() -> MacAddress {
-        MacAddress {
-            mac_address: [0 as u8; 6],
+impl BgpCapAddPath {
+    pub fn response(src: &BgpCapAddPath) -> BgpCapAddPath {
+        BgpCapAddPath {
+            afi: src.afi,
+            safi: src.safi,
+            send: src.receive,
+            receive: src.send,
         }
     }
-    /// Construct new mac address from 6 bytes.
-    pub fn from(b: &[u8]) -> MacAddress {
-        let mut bf = [0 as u8; 6];
-        bf.clone_from_slice(&b[0..6]);
-        MacAddress { mac_address: bf }
+    pub fn new_from_cap(
+        base_safi: BgpCapability,
+        send: bool,
+        receive: bool,
+    ) -> Result<BgpCapAddPath, BgpError> {
+        let afisafi: (u16, u8) = match base_safi {
+            BgpCapability::SafiIPv4u => (1, 1),
+            BgpCapability::SafiIPv4m => (1, 4),
+            BgpCapability::SafiIPv4mvpn => (1, 5),
+            BgpCapability::SafiVPNv4u => (1, 128),
+            BgpCapability::SafiVPNv4m => (1, 129),
+            BgpCapability::SafiIPv4lu => (1, 2),
+            BgpCapability::SafiIPv6u => (2, 1),
+            BgpCapability::SafiIPv6lu => (2, 4),
+            BgpCapability::SafiVPNv6u => (2, 128),
+            BgpCapability::SafiVPNv6m => (2, 129),
+            BgpCapability::SafiVPLS => (25, 65),
+            BgpCapability::SafiEVPN => (25, 70),
+            _ => return Err(BgpError::static_str("Invalid base capability")),
+        };
+        Ok(BgpCapAddPath {
+            afi: afisafi.0,
+            safi: afisafi.1,
+            send: send,
+            receive: receive,
+        })
     }
-}
-impl std::fmt::Display for MacAddress {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
-            self.mac_address[0],
-            self.mac_address[1],
-            self.mac_address[2],
-            self.mac_address[3],
-            self.mac_address[4],
-            self.mac_address[5],
-        )
+    pub fn encode_to(&self, buf: &mut [u8]) -> Result<(), BgpError> {
+        if buf.len() < 6 {
+            return Err(BgpError::insufficient_buffer_size());
+        }
+        buf[0] = 69;
+        buf[1] = 4;
+        setn_u16(self.afi, &mut buf[2..4]);
+        buf[4] = self.safi;
+        buf[5] = (if self.receive { 1 } else { 0 }) | (if self.send { 2 } else { 0 });
+        Ok(())
     }
-}
-impl std::fmt::Debug for MacAddress {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
-            self.mac_address[0],
-            self.mac_address[1],
-            self.mac_address[2],
-            self.mac_address[3],
-            self.mac_address[4],
-            self.mac_address[5]
-        ))
-    }
-}
-#[cfg(feature = "serialization")]
-impl serde::Serialize for MacAddress {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.to_string().as_str())
+    pub fn decode_from(buf: &[u8]) -> Result<BgpCapAddPath, BgpError> {
+        if buf.len() < 6 {
+            return Err(BgpError::insufficient_buffer_size());
+        }
+        if buf[0] != 69 {
+            return Err(BgpError::static_str("Invalid capability code for AddPath"));
+        }
+        if buf[1] != 4 {
+            return Err(BgpError::static_str(
+                "Invalid capability length for AddPath",
+            ));
+        }
+        Ok(BgpCapAddPath {
+            afi: getn_u16(&buf[2..4]),
+            safi: buf[4],
+            send: (buf[5] & 2) > 0,
+            receive: (buf[5] & 1) > 0,
+        })
     }
 }
 /// BGP capability for OPEN message.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BgpCapability {
     /// BGP capability ipv4 unicast.
     SafiIPv4u,
@@ -222,6 +242,8 @@ pub enum BgpCapability {
     CapASN32(u32),
     /// BGP capability route-refresh.
     CapRR,
+    /// BGP Capability AddPath
+    CapAddPath(BgpCapAddPath),
 }
 
 impl BgpCapability {
@@ -245,10 +267,11 @@ impl BgpCapability {
             BgpCapability::SafiEVPN => 6,
             BgpCapability::CapASN32(_) => 6,
             BgpCapability::CapRR => 2,
+            BgpCapability::CapAddPath(_) => 6,
         }
     }
     /// Store capability code into the given buffer.
-    fn fill_buffer(&self, buf: &mut [u8]) {
+    fn fill_buffer(&self, buf: &mut [u8]) -> Result<(), BgpError> {
         match self {
             BgpCapability::SafiIPv4u => {
                 buf.clone_from_slice(&[1, 4, 0, 1, 0, 1]);
@@ -308,7 +331,11 @@ impl BgpCapability {
             BgpCapability::CapRR => {
                 buf.clone_from_slice(&[2, 0]);
             }
+            BgpCapability::CapAddPath(ap) => {
+                ap.encode_to(buf)?;
+            }
         };
+        Ok(())
     }
     /// Decode capability code from given buffer. Returns capability and consumed buffer length.
     fn from_buffer(buf: &[u8]) -> Result<(BgpCapability, usize), BgpError> {
@@ -350,6 +377,11 @@ impl BgpCapability {
             Ok((BgpCapability::CapASN32(getn_u32(&buf[2..6])), 6))
         } else if buf.len() >= 2 && buf[0] == 2 && buf[1] == 0 {
             Ok((BgpCapability::CapRR, 2))
+        } else if buf.len() >= 6 && buf[0] == 69 && buf[1] == 4 {
+            Ok((
+                BgpCapability::CapAddPath(BgpCapAddPath::decode_from(buf)?),
+                6,
+            ))
         } else {
             Err(BgpError::static_str("Invalid capability"))
         }
@@ -370,7 +402,7 @@ pub struct BgpSessionParams {
     /// Router ID.
     pub router_id: std::net::Ipv4Addr,
     /// Capability set for this session.
-    pub caps: std::collections::HashSet<BgpCapability>,
+    pub caps: Vec<BgpCapability>,
 }
 
 impl BgpSessionParams {
@@ -379,7 +411,7 @@ impl BgpSessionParams {
         holdtime: u16,
         peermode: BgpTransportMode,
         routerid: std::net::Ipv4Addr,
-        cps: std::collections::HashSet<BgpCapability>,
+        cps: Vec<BgpCapability>,
     ) -> BgpSessionParams {
         BgpSessionParams {
             as_num: asnum,
@@ -417,6 +449,93 @@ impl BgpSessionParams {
                 _ => {}
             }
         }
+    }
+    /// Match capability set
+    pub fn match_caps(&mut self, rcaps: &Vec<BgpCapability>) {
+        self.has_as32bit = false;
+        let nv = self
+            .caps
+            .iter()
+            .map(|x| match x {
+                BgpCapability::CapASN32(_) => {
+                    if rcaps
+                        .iter()
+                        .find(|q| {
+                            if let BgpCapability::CapASN32(_) = q {
+                                true
+                            } else {
+                                false
+                            }
+                        })
+                        .is_some()
+                    {
+                        Some((*x).clone())
+                    } else {
+                        None
+                    }
+                }
+                BgpCapability::CapAddPath(cap) => {
+                    match rcaps.iter().find(|q| {
+                        if let BgpCapability::CapAddPath(tcap) = q {
+                            tcap.afi == cap.afi && tcap.safi == cap.safi
+                        } else {
+                            false
+                        }
+                    }) {
+                        None => None,
+                        Some(ocap) => match ocap {
+                            BgpCapability::CapAddPath(icap) => {
+                                Some(BgpCapability::CapAddPath(BgpCapAddPath::response(icap)))
+                            }
+                            _ => None,
+                        },
+                    }
+                }
+                _ => {
+                    if rcaps.iter().find(|q| **q == *x).is_some() {
+                        Some((*x).clone())
+                    } else {
+                        None
+                    }
+                }
+            })
+            .filter(|x| x.is_some())
+            .map(|x| x.unwrap())
+            .collect();
+        self.caps = nv;
+        self.check_caps();
+    }
+    /// Search for specified addpath capability.
+    pub fn find_addpath(&self, afi: u16, safi: u8) -> Option<&BgpCapAddPath> {
+        for cap in self.caps.iter() {
+            match cap {
+                BgpCapability::CapAddPath(ap) => {
+                    if ap.afi == afi && ap.safi == safi {
+                        return Some(ap);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+    /// Search for specified addpath send capability.
+    pub fn check_addpath_send(&self, afi: u16, safi: u8) -> bool {
+        match self.find_addpath(afi, safi) {
+            None => false,
+            Some(x) => x.send,
+        }
+    }
+    /// Search for specified addpath receive capability.
+    pub fn check_addpath_receive(&self, afi: u16, safi: u8) -> bool {
+        match self.find_addpath(afi, safi) {
+            None => false,
+            Some(x) => x.receive,
+        }
+    }
+    /// Check for capability
+    pub fn check_capability(&self,cp:&BgpCapability) -> bool {
+        self.caps.iter().find(|x| {*x==cp}).is_some()
     }
     /// Decode message head from buffer. Returns following message kind and length.
     pub fn decode_message_head(

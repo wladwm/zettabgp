@@ -7,9 +7,8 @@
 // except according to those terms.
 
 //! BGP multiprotocol update and withdraw path attributes, which carries routing information with mp-bgp
- 
-use crate::*;
 use crate::prelude::*;
+use crate::*;
 
 /// BGP multiprotocol updates
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -24,48 +23,45 @@ impl BgpMPUpdates {
     pub fn s4vpnv4u(nhop: BgpIPv4RD, nlri: Vec<Labeled<WithRd<BgpAddrV4>>>) -> BgpMPUpdates {
         BgpMPUpdates {
             nexthop: BgpAddr::V4RD(nhop),
-            addrs: BgpAddrs::VPNV4U(nlri)
+            addrs: BgpAddrs::VPNV4U(nlri),
         }
     }
     /// Creates update for VPNv4 multicast
     pub fn s4vpnv4m(nhop: BgpIPv4RD, nlri: Vec<Labeled<WithRd<BgpAddrV4>>>) -> BgpMPUpdates {
         BgpMPUpdates {
             nexthop: BgpAddr::V4RD(nhop),
-            addrs: BgpAddrs::VPNV4M(nlri)
+            addrs: BgpAddrs::VPNV4M(nlri),
         }
     }
     /// Creates update for IPv4 labeled unicast
     pub fn s4ip4lu(nhop: std::net::Ipv4Addr, nlri: Vec<Labeled<BgpAddrV4>>) -> BgpMPUpdates {
         BgpMPUpdates {
             nexthop: BgpAddr::V4(nhop),
-            addrs: BgpAddrs::IPV4LU(nlri)
+            addrs: BgpAddrs::IPV4LU(nlri),
         }
     }
     /// Creates update for IPv6 labeled unicast
     pub fn s4ip6lu(nhop: std::net::Ipv4Addr, nlri: Vec<Labeled<BgpAddrV6>>) -> BgpMPUpdates {
         BgpMPUpdates {
             nexthop: BgpAddr::V4(nhop),
-            addrs: BgpAddrs::IPV6LU(nlri)
+            addrs: BgpAddrs::IPV6LU(nlri),
         }
     }
     /// Creates update for VPNv6 unicast
     pub fn s4vpnv6u(nhop: BgpIPv4RD, nlri: Vec<Labeled<WithRd<BgpAddrV6>>>) -> BgpMPUpdates {
         BgpMPUpdates {
             nexthop: BgpAddr::V4RD(nhop),
-            addrs: BgpAddrs::VPNV6U(nlri)
+            addrs: BgpAddrs::VPNV6U(nlri),
         }
     }
     /// Creates update for VPNv6 multicast
     pub fn s4vpnv6m(nhop: BgpIPv4RD, nlri: Vec<Labeled<WithRd<BgpAddrV6>>>) -> BgpMPUpdates {
         BgpMPUpdates {
             nexthop: BgpAddr::V4RD(nhop),
-            addrs: BgpAddrs::VPNV6M(nlri)
+            addrs: BgpAddrs::VPNV6M(nlri),
         }
     }
-    pub fn decode_from(
-        peer: &BgpSessionParams,
-        buf: &[u8],
-    ) -> Result<BgpMPUpdates, BgpError> {
+    pub fn decode_from(peer: &BgpSessionParams, buf: &[u8]) -> Result<BgpMPUpdates, BgpError> {
         let afi = getn_u16(&buf);
         let safi = buf[2];
         let mut curpos: usize = 4;
@@ -87,11 +83,11 @@ impl BgpMPUpdates {
                         curpos += r.1;
                     }
                     n => {
-                        eprintln!("AFI/SAFI {}/{} {:?}",afi,safi,&buf[curpos..]);
+                        eprintln!("AFI/SAFI {}/{} {:?}", afi, safi, &buf[curpos..]);
                         return Err(BgpError::from_string(format!(
                             "Unknown safi for ipv4 code {:?}",
                             n
-                        )))
+                        )));
                     }
                 }
             }
@@ -133,12 +129,7 @@ impl BgpMPUpdates {
                     }
                 }
             }
-            n => {
-                return Err(BgpError::from_string(format!(
-                    "Unknown afi code {:?}",
-                    n
-                )))
-            }
+            n => return Err(BgpError::from_string(format!("Unknown afi code {:?}", n))),
         }
         let snpa_count = buf[curpos];
         curpos += 1;
@@ -174,37 +165,25 @@ impl BgpAttr for BgpMPUpdates {
             flags: 144,
         }
     }
-    fn encode_to(
-        &self,
-        peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
-        let afisafi=self.addrs.get_afi_safi();
-        setn_u16(afisafi.0,&mut buf[..2]);
-        buf[2]=afisafi.1;
+    fn encode_to(&self, peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
+        let afisafi = self.addrs.get_afi_safi();
+        setn_u16(afisafi.0, &mut buf[..2]);
+        buf[2] = afisafi.1;
         let mut curpos: usize = 4;
-        let nhl=match &self.nexthop {
+        let nhl = match &self.nexthop {
             BgpAddr::None => 0,
-            BgpAddr::V4(a) => {
-                encode_addrv4_to(&a, &mut buf[curpos..])?
-            }
-            BgpAddr::V6(a) => {
-                encode_addrv6_to(&a, &mut buf[curpos..])?
-            }
-            BgpAddr::V4RD(a) => {
-                a.encode_to(peer.peer_mode,&mut buf[curpos..])?
-            }
-            BgpAddr::V6RD(a) => {
-                a.encode_to(peer.peer_mode,&mut buf[curpos..])?
-            }
-            _ => return Err(BgpError::static_str("Invalid nexthop kind"))
+            BgpAddr::V4(a) => encode_addrv4_to(&a, &mut buf[curpos..])?,
+            BgpAddr::V6(a) => encode_addrv6_to(&a, &mut buf[curpos..])?,
+            BgpAddr::V4RD(a) => a.encode_to(peer.peer_mode, &mut buf[curpos..])?,
+            BgpAddr::V6RD(a) => a.encode_to(peer.peer_mode, &mut buf[curpos..])?,
+            _ => return Err(BgpError::static_str("Invalid nexthop kind")),
         };
-        buf[3]=nhl as u8;
-        curpos+=nhl;
-        buf[curpos]=0;//snpa
+        buf[3] = nhl as u8;
+        curpos += nhl;
+        buf[curpos] = 0; //snpa
         curpos += 1;
-        let ps=self.addrs.encode_to(peer,&mut buf[curpos..])?;
-        curpos+=ps;
+        let ps = self.addrs.encode_to(peer, &mut buf[curpos..])?;
+        curpos += ps;
         Ok(curpos)
     }
 }
@@ -216,10 +195,7 @@ pub struct BgpMPWithdraws {
     pub addrs: BgpAddrs,
 }
 impl BgpMPWithdraws {
-    pub fn decode_from(
-        peer: &BgpSessionParams,
-        buf: &[u8],
-    ) -> Result<BgpMPWithdraws, BgpError> {
+    pub fn decode_from(peer: &BgpSessionParams, buf: &[u8]) -> Result<BgpMPWithdraws, BgpError> {
         let afi = getn_u16(&buf);
         let safi = buf[2];
         let a = BgpAddrs::decode_from(peer, afi, safi, &buf[3..])?;
@@ -245,17 +221,13 @@ impl BgpAttr for BgpMPWithdraws {
             flags: 144,
         }
     }
-    fn encode_to(
-        &self,
-        peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
-        let afisafi=self.addrs.get_afi_safi();
-        setn_u16(afisafi.0,&mut buf[..2]);
-        buf[2]=afisafi.1;
+    fn encode_to(&self, peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
+        let afisafi = self.addrs.get_afi_safi();
+        setn_u16(afisafi.0, &mut buf[..2]);
+        buf[2] = afisafi.1;
         let mut curpos: usize = 3;
-        let ps=self.addrs.encode_to(peer,&mut buf[curpos..])?;
-        curpos+=ps;
+        let ps = self.addrs.encode_to(peer, &mut buf[curpos..])?;
+        curpos += ps;
         Ok(curpos)
     }
 }
