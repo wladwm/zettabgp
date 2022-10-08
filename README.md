@@ -23,11 +23,13 @@ BMP - BGP Monitoring Protocol version 3.
  * ipv4 labeled-unicast
  * ipv4 multicast
  * ipv4 mvpn
+ * ipv4 mdt
  * vpnv4 unicast
  * vpnv4 multicast
  * ipv6 unicast
  * ipv6 labeled-unicast
  * ipv6 multicast
+ * ipv6 mdt
  * vpnv6 unicast
  * vpnv6 multicast
  * vpls
@@ -47,6 +49,7 @@ BMP - BGP Monitoring Protocol version 3.
  * Cluster list
  * Originator ID
  * Attribute set
+ * Connector
  * some PMSI tunnels
 
 ## Usage

@@ -9,9 +9,14 @@
 //! This module describes NLRI data structures for evpn https://tools.ietf.org/html/rfc7432
 
 use crate::afi::*;
+#[cfg(feature = "serialization")]
+use serde::{Deserialize, Serialize};
 
-//EVPN ESI field
+///EVPN ESI field
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct EVPNESI {
     pub v: Vec<u8>,
 }
@@ -23,7 +28,7 @@ impl EVPNESI {
         EVPNESI { v: src.to_vec() }
     }
     pub fn is_zero(&self) -> bool {
-        self.v.iter().find(|x| (**x) != 0).is_none()
+        !self.v.iter().any(|x| (*x) != 0)
     }
 }
 impl std::fmt::Display for EVPNESI {
@@ -40,6 +45,8 @@ impl std::fmt::Display for EVPNESI {
 }
 //EVPN Ethernet Auto-Discovery (A-D) route
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpEVPN1 {
     pub rd: BgpRD,
     pub esi_type: u8,
@@ -84,6 +91,8 @@ impl std::fmt::Display for BgpEVPN1 {
 
 //EVPN MAC/IP Advertisement Route
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpEVPN2 {
     pub rd: BgpRD,
     pub esi_type: u8,
@@ -201,6 +210,8 @@ impl std::fmt::Display for BgpEVPN2 {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 // EVPN Inclusive Multicast Ethernet Tag route
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpEVPN3 {
     pub rd: BgpRD,
     pub ether_tag: u32,
@@ -246,8 +257,10 @@ impl std::fmt::Display for BgpEVPN3 {
     }
 }
 
+/// EVPN Ethernet Segment Route
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-// EVPN Ethernet Segment Route
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpEVPN4 {
     pub rd: BgpRD,
     pub esi_type: u8,
@@ -300,6 +313,8 @@ impl std::fmt::Display for BgpEVPN4 {
 
 /// EVPN route NLRI
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub enum BgpEVPN {
     EVPN1(BgpEVPN1),
     EVPN2(BgpEVPN2),
@@ -352,91 +367,5 @@ impl BgpAddrItem<BgpEVPN> for BgpEVPN {
     }
     fn encode_to(&self, _mode: BgpTransportMode, _buf: &mut [u8]) -> Result<usize, BgpError> {
         unimplemented!();
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl serde::Serialize for EVPNESI {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_seq(Some(self.v.len()))?;
-        for l in self.v.iter() {
-            state.serialize_element(&l)?;
-        }
-        state.end()
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpEVPN1 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("BgpEVPN1", 5)?;
-        state.serialize_field("rd", &self.rd)?;
-        state.serialize_field("esi_type", &self.esi_type)?;
-        state.serialize_field("esi", &self.esi)?;
-        state.serialize_field("ether_tag", &self.ether_tag)?;
-        state.serialize_field("labels", &self.labels)?;
-        state.end()
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpEVPN2 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("BgpEVPN2", 7)?;
-        state.serialize_field("rd", &self.rd)?;
-        state.serialize_field("esi_type", &self.esi_type)?;
-        state.serialize_field("esi", &self.esi)?;
-        state.serialize_field("ether_tag", &self.ether_tag)?;
-        state.serialize_field("mac", &self.mac)?;
-        state.serialize_field("ip", &self.ip)?;
-        state.serialize_field("labels", &self.labels)?;
-        state.end()
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpEVPN3 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("BgpEVPN3", 3)?;
-        state.serialize_field("rd", &self.rd)?;
-        state.serialize_field("ether_tag", &self.ether_tag)?;
-        state.serialize_field("ip", &self.ip)?;
-        state.end()
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpEVPN4 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("BgpEVPN4", 4)?;
-        state.serialize_field("rd", &self.rd)?;
-        state.serialize_field("esi_type", &self.esi_type)?;
-        state.serialize_field("esi", &self.esi)?;
-        state.serialize_field("ip", &self.ip)?;
-        state.end()
-    }
-}
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpEVPN {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(format!("{}", self).as_str())
     }
 }

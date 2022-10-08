@@ -13,18 +13,10 @@ use crate::*;
 pub struct BgpKeepaliveMessage {}
 
 impl BgpMessage for BgpKeepaliveMessage {
-    fn decode_from(
-        &mut self,
-        _peer: &BgpSessionParams,
-        _buf: &[u8],
-    ) -> Result<(), BgpError> {
+    fn decode_from(&mut self, _peer: &BgpSessionParams, _buf: &[u8]) -> Result<(), BgpError> {
         Ok(())
     }
-    fn encode_to(
-        &self,
-        _peer: &BgpSessionParams,
-        _buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
+    fn encode_to(&self, _peer: &BgpSessionParams, _buf: &mut [u8]) -> Result<usize, BgpError> {
         Ok(0)
     }
 }

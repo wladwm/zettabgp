@@ -1,8 +1,19 @@
-### 0.2.1 (2021-08-01)
+### 0.3.0 (2022-10-08)
+
+#### Features
+
+* serde deserializaion support
+* mdt safi (multicast distribution tree) added
 
 #### Fixes
 
-* Multiple addpath capabilities fixed
+* clippy fixes
+
+### 0.2.1 (2021-08-01)
+
+#### Features
+
+* multiple AddPath capabilities support
 
 ### 0.2.0 (2021-07-25)
 
@@ -11,7 +22,6 @@
 * AddPath support
 * afi::BgpNet support for MAC prefixes
 * extcommunity varieties extended
-
 
 ### 0.1.5 (2021-07-19)
 

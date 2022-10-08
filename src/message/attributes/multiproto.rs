@@ -8,10 +8,13 @@
 
 //! BGP multiprotocol update and withdraw path attributes, which carries routing information with mp-bgp
 use crate::prelude::*;
-use crate::*;
+#[cfg(feature = "serialization")]
+use serde::{Deserialize, Serialize};
 
 /// BGP multiprotocol updates
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpMPUpdates {
     /// next hop for this updates
     pub nexthop: BgpAddr,
@@ -62,7 +65,7 @@ impl BgpMPUpdates {
         }
     }
     pub fn decode_from(peer: &BgpSessionParams, buf: &[u8]) -> Result<BgpMPUpdates, BgpError> {
-        let afi = getn_u16(&buf);
+        let afi = getn_u16(buf);
         let safi = buf[2];
         let mut curpos: usize = 4;
         let nh: BgpAddr;
@@ -71,8 +74,8 @@ impl BgpMPUpdates {
             1 => {
                 //ipv4
                 match safi {
-                    1 | 2 | 4 | 5 | 133 => {
-                        //unicast|multicast|labeled unicast|mvpn|flow
+                    1 | 2 | 4 | 5 | 66 | 133 => {
+                        //unicast|multicast|labeled unicast|mvpn|mdt|flow
                         nh = BgpAddr::V4(decode_addrv4_from(&buf[curpos..(curpos + nhlen)])?);
                         curpos += nhlen;
                     }
@@ -94,8 +97,8 @@ impl BgpMPUpdates {
             2 => {
                 //ipv6
                 match safi {
-                    1 | 2 | 4 => {
-                        //unicast|multicast|labeled unicast
+                    1 | 2 | 4 | 66 => {
+                        //unicast|multicast|labeled unicast|mdt
                         nh = BgpAddr::V6(decode_addrv6_from(&buf[curpos..(curpos + nhlen)])?);
                         curpos += nhlen;
                     }
@@ -172,8 +175,8 @@ impl BgpAttr for BgpMPUpdates {
         let mut curpos: usize = 4;
         let nhl = match &self.nexthop {
             BgpAddr::None => 0,
-            BgpAddr::V4(a) => encode_addrv4_to(&a, &mut buf[curpos..])?,
-            BgpAddr::V6(a) => encode_addrv6_to(&a, &mut buf[curpos..])?,
+            BgpAddr::V4(a) => encode_addrv4_to(a, &mut buf[curpos..])?,
+            BgpAddr::V6(a) => encode_addrv6_to(a, &mut buf[curpos..])?,
             BgpAddr::V4RD(a) => a.encode_to(peer.peer_mode, &mut buf[curpos..])?,
             BgpAddr::V6RD(a) => a.encode_to(peer.peer_mode, &mut buf[curpos..])?,
             _ => return Err(BgpError::static_str("Invalid nexthop kind")),
@@ -190,13 +193,15 @@ impl BgpAttr for BgpMPUpdates {
 
 /// BGP multiprotocol withdraws
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpMPWithdraws {
     /// NLRI
     pub addrs: BgpAddrs,
 }
 impl BgpMPWithdraws {
     pub fn decode_from(peer: &BgpSessionParams, buf: &[u8]) -> Result<BgpMPWithdraws, BgpError> {
-        let afi = getn_u16(&buf);
+        let afi = getn_u16(buf);
         let safi = buf[2];
         let a = BgpAddrs::decode_from(peer, afi, safi, &buf[3..])?;
         Ok(BgpMPWithdraws { addrs: a.0 })

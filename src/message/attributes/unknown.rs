@@ -8,13 +8,14 @@
 
 //! BGP unsupported path attributes
 
-use crate::*;
 use crate::message::attributes::*;
 #[cfg(feature = "serialization")]
-use serde::ser::{SerializeStruct};
+use serde::{Deserialize, Serialize};
 
 /// Unsupported BGP path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpAttrUnknown {
     /// PA typecode&flags
     pub params: BgpAttrParams,
@@ -22,20 +23,16 @@ pub struct BgpAttrUnknown {
     pub value: Vec<u8>,
 }
 impl BgpAttrUnknown {
-    pub fn new(tc: u8, flg: u8) -> Box<dyn BgpAttr> {
-        Box::new(BgpAttrUnknown {
+    pub fn new(tc: u8, flg: u8) -> BgpAttrUnknown {
+        BgpAttrUnknown {
             params: BgpAttrParams {
                 typecode: tc,
                 flags: flg,
             },
             value: Vec::new(),
-        })
+        }
     }
-    pub fn decode_from(
-        tc: u8,
-        flg: u8,
-        buf: &[u8],
-    ) -> Result<BgpAttrUnknown, BgpError> {
+    pub fn decode_from(tc: u8, flg: u8, buf: &[u8]) -> Result<BgpAttrUnknown, BgpError> {
         let mut ret = BgpAttrUnknown {
             params: BgpAttrParams {
                 typecode: tc,
@@ -72,37 +69,8 @@ impl BgpAttr for BgpAttrUnknown {
             flags: 64,
         }
     }
-    fn encode_to(
-        &self,
-        _peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
+    fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
         buf[0..self.value.len()].clone_from_slice(self.value.as_slice());
         Ok(self.value.len())
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpAttrParams {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("BgpAttrParams", 2)?;
-        state.serialize_field("typecode", &self.typecode)?;
-        state.serialize_field("flags", &self.flags)?;
-        state.end()
-    }
-}
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpAttrUnknown {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("BgpAttrUnknown", 2)?;
-        state.serialize_field("params", &self.params)?;
-        state.serialize_field("value", &self.value)?;
-        state.end()
     }
 }

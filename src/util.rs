@@ -15,7 +15,7 @@ pub fn decode_addrv4_from(buf: &[u8]) -> Result<std::net::Ipv4Addr, BgpError> {
     if buf.len() < 4 {
         return Err(BgpError::static_str("Invalid addrv4 length"));
     }
-    return Ok(std::net::Ipv4Addr::new(buf[0], buf[1], buf[2], buf[3]));
+    Ok(std::net::Ipv4Addr::new(buf[0], buf[1], buf[2], buf[3]))
 }
 /// Stores ipv4 address into the buffer.
 pub fn encode_addrv4_to(addr: &std::net::Ipv4Addr, buf: &mut [u8]) -> Result<usize, BgpError> {
@@ -30,7 +30,7 @@ pub fn decode_addrv6_from(buf: &[u8]) -> Result<std::net::Ipv6Addr, BgpError> {
     if buf.len() < 16 {
         return Err(BgpError::static_str("Invalid addrv6 length"));
     }
-    return Ok(std::net::Ipv6Addr::new(
+    Ok(std::net::Ipv6Addr::new(
         getn_u16(&buf[0..2]),
         getn_u16(&buf[2..4]),
         getn_u16(&buf[4..6]),
@@ -39,7 +39,7 @@ pub fn decode_addrv6_from(buf: &[u8]) -> Result<std::net::Ipv6Addr, BgpError> {
         getn_u16(&buf[10..12]),
         getn_u16(&buf[12..14]),
         getn_u16(&buf[14..16]),
-    ));
+    ))
 }
 /// Stores ipv6 address into the buffer.
 pub fn encode_addrv6_to(addr: &std::net::Ipv6Addr, buf: &mut [u8]) -> Result<usize, BgpError> {
@@ -89,4 +89,3 @@ pub fn getn_u64(a: &[u8]) -> u64 {
 pub fn getn_u128(a: &[u8]) -> u128 {
     ((getn_u64(a) as u128) << 64) | (getn_u64(&a[8..16]) as u128)
 }
-

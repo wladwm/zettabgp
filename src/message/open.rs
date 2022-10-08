@@ -102,14 +102,18 @@ impl BgpMessage for BgpOpenMessage {
         Ok(pos)
     }
 }
-
 impl BgpOpenMessage {
     pub fn new() -> BgpOpenMessage {
-        return BgpOpenMessage {
+        BgpOpenMessage {
             as_num: 0,
             hold_time: 180,
             router_id: std::net::Ipv4Addr::new(127, 0, 0, 1),
             caps: Vec::new(),
-        };
+        }
+    }
+}
+impl Default for BgpOpenMessage {
+    fn default() -> Self {
+        Self::new()
     }
 }

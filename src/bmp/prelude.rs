@@ -16,9 +16,9 @@
 //! use zettabgp::bmp::prelude::*;
 //! ```
 
-pub use crate::bmp::*;
 pub use crate::bmp::bmputl::*;
 pub use crate::bmp::msginit::*;
 pub use crate::bmp::msgpeer::*;
 pub use crate::bmp::msgrmon::*;
 pub use crate::bmp::msgterm::*;
+pub use crate::bmp::*;

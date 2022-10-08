@@ -10,11 +10,11 @@ use crate::{BgpError, BgpMessage, BgpSessionParams};
 
 /// BGP notification message
 pub struct BgpNotificationMessage {
-/// error code
+    /// error code
     pub error_code: u8,
-/// error sub-code
+    /// error sub-code
     pub error_subcode: u8,
-/// extra data
+    /// extra data
     pub data: u16,
 }
 impl BgpNotificationMessage {
@@ -48,6 +48,7 @@ impl BgpNotificationMessage {
                         4 => String::from("Unsupported Optional Parameter"),
                         5 => String::from("Deprecated(5)"),
                         6 => String::from("Unacceptable Hold Time"),
+                        7 => String::from("Unsupported capability"),
                         n => String::from(" subcode ") + n.to_string().as_str(),
                     })
                     .as_str()
@@ -127,16 +128,15 @@ impl std::fmt::Display for BgpNotificationMessage {
         )
     }
 }
+impl Default for BgpNotificationMessage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl BgpMessage for BgpNotificationMessage {
-    fn decode_from(
-        &mut self,
-        _peer: &BgpSessionParams,
-        buf: &[u8],
-    ) -> Result<(), BgpError> {
+    fn decode_from(&mut self, _peer: &BgpSessionParams, buf: &[u8]) -> Result<(), BgpError> {
         if buf.len() < 2 {
-            return Err(BgpError::static_str(
-                "Invalid notification message length",
-            ));
+            return Err(BgpError::static_str("Invalid notification message length"));
         }
         self.error_code = buf[0];
         self.error_subcode = buf[1];
@@ -148,15 +148,9 @@ impl BgpMessage for BgpNotificationMessage {
         }
         Ok(())
     }
-    fn encode_to(
-        &self,
-        _peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
+    fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
         if buf.len() < 4 {
-            return Err(BgpError::static_str(
-                "Invalid notification message length",
-            ));
+            return Err(BgpError::static_str("Invalid notification message length"));
         }
         buf[0] = self.error_code;
         buf[1] = self.error_subcode;

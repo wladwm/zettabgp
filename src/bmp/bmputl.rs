@@ -29,9 +29,10 @@ pub fn decode_bmp_addr_from(buf: &[u8]) -> Result<std::net::IpAddr, BgpError> {
         && buf[10] == 0
         && buf[11] == 0
     {
-        return Ok(std::net::IpAddr::V4(decode_addrv4_from(&buf[12..])?));
+        Ok(std::net::IpAddr::V4(decode_addrv4_from(&buf[12..])?))
+    } else {
+        Ok(std::net::IpAddr::V6(decode_addrv6_from(buf)?))
     }
-    return Ok(std::net::IpAddr::V6(decode_addrv6_from(buf)?));
 }
 
 /// peer header
@@ -78,35 +79,35 @@ impl PartialOrd for BmpMessagePeerHeader {
             match pc {
                 Ordering::Less => return Some(Ordering::Less),
                 Ordering::Greater => return Some(Ordering::Greater),
-                Ordering::Equal => {},
+                Ordering::Equal => {}
             }
         };
         if let Some(pc) = self.flags.partial_cmp(&other.flags) {
             match pc {
                 Ordering::Less => return Some(Ordering::Less),
                 Ordering::Greater => return Some(Ordering::Greater),
-                Ordering::Equal => {},
+                Ordering::Equal => {}
             }
         };
         if let Some(pc) = self.peerdistinguisher.partial_cmp(&other.peerdistinguisher) {
             match pc {
                 Ordering::Less => return Some(Ordering::Less),
                 Ordering::Greater => return Some(Ordering::Greater),
-                Ordering::Equal => {},
+                Ordering::Equal => {}
             }
         };
         if let Some(pc) = self.peeraddress.partial_cmp(&other.peeraddress) {
             match pc {
                 Ordering::Less => return Some(Ordering::Less),
                 Ordering::Greater => return Some(Ordering::Greater),
-                Ordering::Equal => {},
+                Ordering::Equal => {}
             }
         };
         if let Some(pc) = self.asnum.partial_cmp(&other.asnum) {
             match pc {
                 Ordering::Less => return Some(Ordering::Less),
                 Ordering::Greater => return Some(Ordering::Greater),
-                Ordering::Equal => {},
+                Ordering::Equal => {}
             }
         };
         self.routerid.partial_cmp(&other.routerid)
@@ -115,23 +116,23 @@ impl PartialOrd for BmpMessagePeerHeader {
 impl Ord for BmpMessagePeerHeader {
     fn cmp(&self, other: &Self) -> Ordering {
         match self.peertype.cmp(&other.peertype) {
-            Ordering::Equal => {},
+            Ordering::Equal => {}
             x => return x,
         };
         match self.flags.cmp(&other.flags) {
-            Ordering::Equal => {},
+            Ordering::Equal => {}
             x => return x,
         };
         match self.peerdistinguisher.cmp(&other.peerdistinguisher) {
-            Ordering::Equal => {},
+            Ordering::Equal => {}
             x => return x,
         };
         match self.peeraddress.cmp(&other.peeraddress) {
-            Ordering::Equal => {},
+            Ordering::Equal => {}
             x => return x,
         };
         match self.asnum.cmp(&other.asnum) {
-            Ordering::Equal => {},
+            Ordering::Equal => {}
             x => return x,
         };
         self.routerid.cmp(&other.routerid)

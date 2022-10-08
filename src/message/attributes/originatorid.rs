@@ -9,10 +9,15 @@
 //! BGP originator id path attribute
 
 use crate::message::attributes::*;
+#[cfg(feature = "serialization")]
+use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
 /// BGP originator id path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct BgpOriginatorID {
     pub value: IpAddr,
 }
@@ -71,15 +76,5 @@ impl BgpAttr for BgpOriginatorID {
                 }
             }
         }
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpOriginatorID {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.value.to_string().as_str())
     }
 }

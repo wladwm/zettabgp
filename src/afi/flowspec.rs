@@ -8,6 +8,8 @@
 
 //! This module describes NLRI data structures for flowspec https://tools.ietf.org/html/rfc5575
 use crate::afi::*;
+#[cfg(feature = "serialization")]
+use serde::{Deserialize, Serialize};
 
 /// FlowSpec NLRI item trait
 pub trait FSItem<T: std::marker::Sized> {
@@ -36,6 +38,8 @@ impl FSItem<BgpAddrV4> for BgpAddrV4 {
 
 /// FlowSpec NLRI ipv6 unicast
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct FS6 {
     pub ipv6: BgpAddrV6,
     pub offset: u8,
@@ -75,6 +79,9 @@ impl FSItem<FS6> for FS6 {
 
 /// FlowSpec NLRI vpnv4 unicast
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct FSV4U {
     pub prefix: WithRd<BgpAddrV4>,
 }
@@ -114,6 +121,8 @@ pub trait FSOperItem: Clone + PartialEq + Eq + PartialOrd + Ord {
     fn decode_from(buf: &[u8]) -> Result<(Self, usize), BgpError>;
 }
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct FSOperValItem {
     pub and_bit: bool,
     pub lt_cmp: bool,
@@ -242,7 +251,7 @@ impl<T: FSOperItem> FSOperVec<T> {
         a
     }
     fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
-        if self.items.len() < 1 {
+        if self.items.is_empty() {
             return Ok(0);
         }
         let mut pos: usize = 0;
@@ -265,7 +274,30 @@ impl<T: FSOperItem> FSOperVec<T> {
         Ok((Self { items: v }, pos))
     }
 }
+#[cfg(feature = "serialization")]
+impl<T: FSOperItem + serde::Serialize> serde::Serialize for FSOperVec<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.items.serialize(serializer)
+    }
+}
+#[cfg(feature = "serialization")]
+impl<'de, T: FSOperItem + de::Deserialize<'de>> de::Deserialize<'de> for FSOperVec<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        Ok(FSOperVec {
+            items: Vec::deserialize(deserializer)?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct FSOperMaskItem {
     pub and_bit: bool,
     pub bit_not: bool,
@@ -382,7 +414,7 @@ pub enum BgpFlowSpec<T: FSItem<T>> {
     IcmpCode(FSCmpValOpers),
     TcpFlags(FSCmpMaskOpers),
     PacketLength(FSCmpValOpers),
-    DSCP(FSCmpValOpers),
+    Dscp(FSCmpValOpers),
     Fragment(FSCmpMaskOpers),
     FlowLabel(FSCmpValOpers),
 }
@@ -444,7 +476,7 @@ impl<T: FSItem<T>> BgpAddrItem<BgpFlowSpec<T>> for BgpFlowSpec<T> {
             }
             11 => {
                 let r = FSOperVec::decode_from(&buf[pos + 1..nlen])?;
-                Ok((BgpFlowSpec::DSCP(r.0), r.1 + pos + 1))
+                Ok((BgpFlowSpec::Dscp(r.0), r.1 + pos + 1))
             }
             12 => {
                 let r = FSOperVec::decode_from(&buf[pos + 1..nlen])?;
@@ -470,7 +502,7 @@ impl<T: FSItem<T>> BgpAddrItem<BgpFlowSpec<T>> for BgpFlowSpec<T> {
             BgpFlowSpec::IcmpCode(v) => 2 + v.getbyteslen(),
             BgpFlowSpec::TcpFlags(v) => 2 + v.getbyteslen(),
             BgpFlowSpec::PacketLength(v) => 2 + v.getbyteslen(),
-            BgpFlowSpec::DSCP(v) => 2 + v.getbyteslen(),
+            BgpFlowSpec::Dscp(v) => 2 + v.getbyteslen(),
             BgpFlowSpec::Fragment(v) => 2 + v.getbyteslen(),
             BgpFlowSpec::FlowLabel(v) => 2 + v.getbyteslen(),
         };
@@ -534,7 +566,7 @@ impl<T: FSItem<T>> BgpAddrItem<BgpFlowSpec<T>> for BgpFlowSpec<T> {
                 buf[pos] = 10;
                 pos + 1 + v.encode_to(&mut buf[pos + 1..])?
             }
-            BgpFlowSpec::DSCP(v) => {
+            BgpFlowSpec::Dscp(v) => {
                 buf[pos] = 11;
                 pos + 1 + v.encode_to(&mut buf[pos + 1..])?
             }
@@ -552,29 +584,170 @@ impl<T: FSItem<T>> BgpAddrItem<BgpFlowSpec<T>> for BgpFlowSpec<T> {
 }
 
 #[cfg(feature = "serialization")]
-impl serde::Serialize for FSOperValItem {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(format!("{}", self).as_str())
+mod ser {
+    use super::*;
+    const BFS_N: &str = "BgpFlowSpec";
+    const BFS_VARS: [&str; 13] = [
+        "PrefixDst",
+        "PrefixSrc",
+        "Proto",
+        "PortAny",
+        "PortDst",
+        "PortSrc",
+        "IcmpType",
+        "IcmpCode",
+        "TcpFlags",
+        "PacketLength",
+        "DSCP",
+        "Fragment",
+        "FlowLabel",
+    ];
+    impl<T: FSItem<T> + serde::Serialize> serde::Serialize for BgpFlowSpec<T> {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            match self {
+                BgpFlowSpec::PrefixDst(a) => {
+                    serializer.serialize_newtype_variant(BFS_N, 0, BFS_VARS[0], a)
+                }
+                BgpFlowSpec::PrefixSrc(a) => {
+                    serializer.serialize_newtype_variant(BFS_N, 1, BFS_VARS[1], a)
+                }
+                BgpFlowSpec::Proto(a) => {
+                    serializer.serialize_newtype_variant(BFS_N, 2, BFS_VARS[2], a)
+                }
+                BgpFlowSpec::PortAny(a) => {
+                    serializer.serialize_newtype_variant(BFS_N, 3, BFS_VARS[3], a)
+                }
+                BgpFlowSpec::PortDst(a) => {
+                    serializer.serialize_newtype_variant(BFS_N, 4, BFS_VARS[4], a)
+                }
+                BgpFlowSpec::PortSrc(a) => {
+                    serializer.serialize_newtype_variant(BFS_N, 5, BFS_VARS[5], a)
+                }
+                BgpFlowSpec::IcmpType(a) => {
+                    serializer.serialize_newtype_variant(BFS_N, 6, BFS_VARS[6], a)
+                }
+                BgpFlowSpec::IcmpCode(a) => {
+                    serializer.serialize_newtype_variant(BFS_N, 7, BFS_VARS[7], a)
+                }
+                BgpFlowSpec::TcpFlags(a) => {
+                    serializer.serialize_newtype_variant(BFS_N, 8, BFS_VARS[8], a)
+                }
+                BgpFlowSpec::PacketLength(a) => {
+                    serializer.serialize_newtype_variant(BFS_N, 9, BFS_VARS[9], a)
+                }
+                BgpFlowSpec::Dscp(a) => {
+                    serializer.serialize_newtype_variant(BFS_N, 10, BFS_VARS[10], a)
+                }
+                BgpFlowSpec::Fragment(a) => {
+                    serializer.serialize_newtype_variant(BFS_N, 11, BFS_VARS[11], a)
+                }
+                BgpFlowSpec::FlowLabel(a) => {
+                    serializer.serialize_newtype_variant(BFS_N, 12, BFS_VARS[12], a)
+                }
+            }
+        }
     }
-}
-#[cfg(feature = "serialization")]
-impl serde::Serialize for FSOperMaskItem {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(format!("{}", self).as_str())
+    enum BgpFlowSpecVariant {
+        PrefixDst,
+        PrefixSrc,
+        Proto,
+        PortAny,
+        PortDst,
+        PortSrc,
+        IcmpType,
+        IcmpCode,
+        TcpFlags,
+        PacketLength,
+        Dscp,
+        Fragment,
+        FlowLabel,
     }
-}
-#[cfg(feature = "serialization")]
-impl<T: FSItem<T> + std::fmt::Debug> serde::Serialize for BgpFlowSpec<T> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(format!("{}", self).as_str())
+    impl<'de> de::Deserialize<'de> for BgpFlowSpecVariant {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: de::Deserializer<'de>,
+        {
+            struct VariantVisitor;
+            impl<'de> de::Visitor<'de> for VariantVisitor {
+                type Value = BgpFlowSpecVariant;
+                fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    write!(formatter, "expecting one of: {:?}", BFS_VARS)
+                }
+                fn visit_str<E: serde::de::Error>(
+                    self,
+                    value: &str,
+                ) -> Result<BgpFlowSpecVariant, E> {
+                    match value {
+                        "PrefixDst" => Ok(BgpFlowSpecVariant::PrefixDst),
+                        "PrefixSrc" => Ok(BgpFlowSpecVariant::PrefixSrc),
+                        "Proto" => Ok(BgpFlowSpecVariant::Proto),
+                        "PortAny" => Ok(BgpFlowSpecVariant::PortAny),
+                        "PortDst" => Ok(BgpFlowSpecVariant::PortDst),
+                        "PortSrc" => Ok(BgpFlowSpecVariant::PortSrc),
+                        "IcmpType" => Ok(BgpFlowSpecVariant::IcmpType),
+                        "IcmpCode" => Ok(BgpFlowSpecVariant::IcmpCode),
+                        "TcpFlags" => Ok(BgpFlowSpecVariant::TcpFlags),
+                        "PacketLength" => Ok(BgpFlowSpecVariant::PacketLength),
+                        "DSCP" => Ok(BgpFlowSpecVariant::Dscp),
+                        "Fragment" => Ok(BgpFlowSpecVariant::Fragment),
+                        "FlowLabel" => Ok(BgpFlowSpecVariant::FlowLabel),
+                        _ => Err(serde::de::Error::unknown_field(value, &BFS_VARS)),
+                    }
+                }
+            }
+            deserializer.deserialize_identifier(VariantVisitor)
+        }
+    }
+    struct BgpFlowSpecVisitor<T: FSItem<T>> {
+        d: std::marker::PhantomData<T>,
+    }
+    impl<'de, T: FSItem<T> + de::Deserialize<'de>> de::Visitor<'de> for BgpFlowSpecVisitor<T> {
+        type Value = BgpFlowSpec<T>;
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("enum BgpFlowSpec")
+        }
+        fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
+        where
+            V: serde::de::MapAccess<'de>,
+        {
+            if let Some(key) = map.next_key()? {
+                match key {
+                    BgpFlowSpecVariant::PrefixDst => Ok(BgpFlowSpec::PrefixDst(map.next_value()?)),
+                    BgpFlowSpecVariant::PrefixSrc => Ok(BgpFlowSpec::PrefixSrc(map.next_value()?)),
+                    BgpFlowSpecVariant::Proto => Ok(BgpFlowSpec::Proto(map.next_value()?)),
+                    BgpFlowSpecVariant::PortAny => Ok(BgpFlowSpec::PortAny(map.next_value()?)),
+                    BgpFlowSpecVariant::PortDst => Ok(BgpFlowSpec::PortDst(map.next_value()?)),
+                    BgpFlowSpecVariant::PortSrc => Ok(BgpFlowSpec::PortSrc(map.next_value()?)),
+                    BgpFlowSpecVariant::IcmpType => Ok(BgpFlowSpec::IcmpType(map.next_value()?)),
+                    BgpFlowSpecVariant::IcmpCode => Ok(BgpFlowSpec::IcmpCode(map.next_value()?)),
+                    BgpFlowSpecVariant::TcpFlags => Ok(BgpFlowSpec::TcpFlags(map.next_value()?)),
+                    BgpFlowSpecVariant::PacketLength => {
+                        Ok(BgpFlowSpec::PacketLength(map.next_value()?))
+                    }
+                    BgpFlowSpecVariant::Dscp => Ok(BgpFlowSpec::Dscp(map.next_value()?)),
+                    BgpFlowSpecVariant::Fragment => Ok(BgpFlowSpec::Fragment(map.next_value()?)),
+                    BgpFlowSpecVariant::FlowLabel => Ok(BgpFlowSpec::FlowLabel(map.next_value()?)),
+                }
+            } else {
+                Err(de::Error::missing_field(BFS_VARS[0]))
+            }
+        }
+    }
+    impl<'de, T: FSItem<T> + de::Deserialize<'de>> de::Deserialize<'de> for BgpFlowSpec<T> {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: de::Deserializer<'de>,
+        {
+            deserializer.deserialize_enum(
+                BFS_N,
+                &BFS_VARS,
+                BgpFlowSpecVisitor {
+                    d: std::marker::PhantomData,
+                },
+            )
+        }
     }
 }

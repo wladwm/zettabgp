@@ -8,25 +8,32 @@
 
 //! BGP "community list" path attributes
 
-use crate::*;
 use crate::message::attributes::*;
-use std::str::FromStr;
 #[cfg(feature = "serialization")]
-use serde::ser::{SerializeSeq};
+use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 /// BGP community - element for BgpCommunityList path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct BgpCommunity {
     pub value: u32,
 }
 /// BGP community list path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct BgpCommunityList {
     pub value: std::collections::BTreeSet<BgpCommunity>,
 }
 
 /// BGP large community - element for BgpLargeCommunityList path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpLargeCommunity {
     pub ga: u32,
     pub ldp1: u32,
@@ -34,6 +41,9 @@ pub struct BgpLargeCommunity {
 }
 /// BGP <large> community list path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct BgpLargeCommunityList {
     pub value: std::collections::BTreeSet<BgpLargeCommunity>,
 }
@@ -50,13 +60,13 @@ impl BgpLargeCommunity {
             )),
         }
     }
-    pub fn encode_to(&self,buf: &mut [u8]) -> Result<usize, BgpError> {
-        if buf.len()<12 {
+    pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
+        if buf.len() < 12 {
             return Err(BgpError::insufficient_buffer_size());
         }
-        setn_u32(self.ga,buf);
-        setn_u32(self.ldp1,&mut buf[4..8]);
-        setn_u32(self.ldp2,&mut buf[8..12]);
+        setn_u32(self.ga, buf);
+        setn_u32(self.ldp1, &mut buf[4..8]);
+        setn_u32(self.ldp2, &mut buf[8..12]);
         Ok(12)
     }
 }
@@ -109,23 +119,22 @@ impl BgpAttr for BgpLargeCommunityList {
             flags: 224,
         }
     }
-    fn encode_to(
-        &self,
-        _peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
+    fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
         let mut pos: usize = 0;
         for i in &self.value {
-            pos+=i.encode_to(&mut buf[pos..])?;
+            pos += i.encode_to(&mut buf[pos..])?;
         }
         Ok(pos)
     }
 }
+impl Default for BgpLargeCommunityList {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl BgpCommunity {
     pub fn new(v: u32) -> BgpCommunity {
-        BgpCommunity {
-            value: v
-        }
+        BgpCommunity { value: v }
     }
     pub fn from(h: u16, l: u16) -> BgpCommunity {
         BgpCommunity {
@@ -135,21 +144,16 @@ impl BgpCommunity {
     pub fn decode_from(buf: &[u8]) -> Result<BgpCommunity, BgpError> {
         match buf.len() {
             4 => Ok(BgpCommunity {
-                value: getn_u32(&buf),
+                value: getn_u32(buf),
             }),
-            _ => Err(BgpError::static_str(
-                "Invalid BgpCommunity item length",
-            )),
+            _ => Err(BgpError::static_str("Invalid BgpCommunity item length")),
         }
     }
-    fn encode_to(
-        &self,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
-        if buf.len()<4 {
-            return Err(BgpError::insufficient_buffer_size())
+    fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
+        if buf.len() < 4 {
+            return Err(BgpError::insufficient_buffer_size());
         };
-        setn_u32(self.value,buf);
+        setn_u32(self.value, buf);
         Ok(4)
     }
 }
@@ -176,11 +180,15 @@ impl FromStr for BgpCommunity {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.trim().split(':').collect();
         if parts.len() < 2 {
-            Ok(BgpCommunity{value:parts[0].parse()?})
-        } else if parts.len()<3 {
-            Ok(BgpCommunity{value:(parts[0].parse::<u16>()? as u32) << 16 | (parts[1].parse::<u16>()? as u32)})
+            Ok(BgpCommunity {
+                value: parts[0].parse()?,
+            })
+        } else if parts.len() < 3 {
+            Ok(BgpCommunity {
+                value: (parts[0].parse::<u16>()? as u32) << 16 | (parts[1].parse::<u16>()? as u32),
+            })
         } else {
-            Ok(BgpCommunity{value:s.parse()?})
+            Ok(BgpCommunity { value: s.parse()? })
         }
     }
 }
@@ -194,8 +202,13 @@ impl BgpCommunityList {
     }
     pub fn from_vec(v: Vec<BgpCommunity>) -> BgpCommunityList {
         BgpCommunityList {
-            value: v.into_iter().collect()
+            value: v.into_iter().collect(),
         }
+    }
+}
+impl Default for BgpCommunityList {
+    fn default() -> Self {
+        Self::new()
     }
 }
 impl BgpCommunityList {
@@ -225,17 +238,16 @@ impl FromStr for BgpCommunityList {
     type Err = BgpError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let strs:Vec::<&str>=s.split(&[',', ' ', '\t'][..]).collect();
+        let strs: Vec<&str> = s.split(&[',', ' ', '\t'][..]).collect();
         let mut v = std::collections::BTreeSet::new();
         for s in strs.iter() {
-          if let Ok(c) = s.parse() {
-              v.insert(c);
-          }
+            if let Ok(c) = s.parse() {
+                v.insert(c);
+            }
         }
         Ok(BgpCommunityList { value: v })
     }
 }
-
 impl BgpAttr for BgpCommunityList {
     fn attr(&self) -> BgpAttrParams {
         BgpAttrParams {
@@ -243,64 +255,15 @@ impl BgpAttr for BgpCommunityList {
             flags: 192,
         }
     }
-    fn encode_to(
-        &self,
-        _peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
-        if buf.len()<self.value.len()*4 {
+    fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
+        if buf.len() < self.value.len() * 4 {
             return Err(BgpError::insufficient_buffer_size());
         }
         let mut curpos: usize = 0;
         for c in &self.value {
-            let lng=c.encode_to(&mut buf[curpos..])?;
-            curpos+=lng;
+            let lng = c.encode_to(&mut buf[curpos..])?;
+            curpos += lng;
         }
         Ok(curpos)
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpCommunity {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(format!("{}", self).as_str())
-    }
-}
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpCommunityList {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_seq(Some(self.value.len()))?;
-        for l in self.value.iter() {
-            state.serialize_element(&l)?;
-        }
-        state.end()
-    }
-}
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpLargeCommunity {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.to_string().as_str())
-    }
-}
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpLargeCommunityList {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_seq(Some(self.value.len()))?;
-        for l in self.value.iter() {
-            state.serialize_element(&l)?;
-        }
-        state.end()
     }
 }

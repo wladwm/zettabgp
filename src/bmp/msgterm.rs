@@ -21,24 +21,30 @@ pub struct BmpMessageTermination {
 
 impl BmpMessageTermination {
     pub fn new() -> BmpMessageTermination {
-        BmpMessageTermination{str0:None,reason:None}
+        BmpMessageTermination {
+            str0: None,
+            reason: None,
+        }
     }
-    pub fn decode_from(
-        buf: &[u8]
-    ) -> Result<(BmpMessageTermination,usize), BgpError> {
-        let mut pos:usize=0;
+    pub fn decode_from(buf: &[u8]) -> Result<(BmpMessageTermination, usize), BgpError> {
+        let mut pos: usize = 0;
         let mut ret: BmpMessageTermination = BmpMessageTermination::new();
-        while pos<buf.len() {
+        while pos < buf.len() {
             let infotype = getn_u16(&buf[pos..]);
-            let infolen = getn_u16(&buf[pos+2..]) as usize;
-            pos+=4;
+            let infolen = getn_u16(&buf[pos + 2..]) as usize;
+            pos += 4;
             match infotype {
-               0 => {ret.str0=Some(core::str::from_utf8(&buf[pos..pos+infolen])?.to_string())},
-               1 => {ret.reason=Some(getn_u16(&buf[pos..]))},
-               _ => {}
+                0 => ret.str0 = Some(core::str::from_utf8(&buf[pos..pos + infolen])?.to_string()),
+                1 => ret.reason = Some(getn_u16(&buf[pos..])),
+                _ => {}
             }
-           pos+=infolen;
-        };
-        Ok((ret,pos))
+            pos += infolen;
+        }
+        Ok((ret, pos))
+    }
+}
+impl Default for BmpMessageTermination {
+    fn default() -> Self {
+        Self::new()
     }
 }

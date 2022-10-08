@@ -8,11 +8,14 @@
 
 //! BGP origin path attribute
 
-use crate::*;
 use crate::message::attributes::*;
+#[cfg(feature = "serialization")]
+use serde::{Deserialize, Serialize};
 
 /// BGP origin value
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub enum BgpAttrOrigin {
     Igp,
     Egp,
@@ -30,18 +33,19 @@ impl std::fmt::Display for BgpAttrOrigin {
 
 /// BGP origin path attribute
 #[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct BgpOrigin {
     pub value: BgpAttrOrigin,
 }
 impl BgpOrigin {
-    pub fn new(v:BgpAttrOrigin) -> BgpOrigin {
-        BgpOrigin{value:v}
+    pub fn new(v: BgpAttrOrigin) -> BgpOrigin {
+        BgpOrigin { value: v }
     }
     pub fn decode_from(buf: &[u8]) -> Result<BgpOrigin, BgpError> {
-        if buf.len() < 1 {
-            Err(BgpError::static_str(
-                "Invalid PA len for BgpOrigin",
-            ))
+        if buf.is_empty() {
+            Err(BgpError::InsufficientBufferSize)
         } else {
             match buf[0] {
                 0 => Ok(BgpOrigin {
@@ -53,9 +57,7 @@ impl BgpOrigin {
                 2 => Ok(BgpOrigin {
                     value: BgpAttrOrigin::Incomplete,
                 }),
-                _ => Err(BgpError::static_str(
-                    "Invalid value for BgpOrigin",
-                )),
+                _ => Err(BgpError::static_str("Invalid value for BgpOrigin")),
             }
         }
     }
@@ -90,15 +92,9 @@ impl BgpAttr for BgpOrigin {
             flags: 64,
         }
     }
-    fn encode_to(
-        &self,
-        _peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
-        if buf.len() < 1 {
-            Err(BgpError::static_str(
-                "Invalid PA len for BgpOrigin",
-            ))
+    fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
+        if buf.is_empty() {
+            Err(BgpError::InsufficientBufferSize)
         } else {
             match self.value {
                 BgpAttrOrigin::Igp => {
@@ -115,28 +111,5 @@ impl BgpAttr for BgpOrigin {
                 }
             }
         }
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpAttrOrigin {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(match self {
-            BgpAttrOrigin::Igp => "I",
-            BgpAttrOrigin::Egp => "E",
-            _ => "?",
-        })
-    }
-}
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpOrigin {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.value.to_string().as_str())
     }
 }
