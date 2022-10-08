@@ -14,6 +14,7 @@ pub mod atomicaggregate;
 pub mod attrset;
 pub mod clusterlist;
 pub mod community;
+pub mod connector;
 pub mod extcommunity;
 pub mod localpref;
 pub mod med;
@@ -24,7 +25,7 @@ pub mod originatorid;
 pub mod pmsitunnelattr;
 pub mod unknown;
 #[cfg(feature = "serialization")]
-use serde::ser::SerializeMap;
+use serde::{Deserialize, Serialize};
 
 use aggregatoras::BgpAggregatorAS;
 use aspath::BgpASpath;
@@ -32,6 +33,7 @@ use atomicaggregate::BgpAtomicAggregate;
 use attrset::BgpAttrSet;
 use clusterlist::BgpClusterList;
 use community::{BgpCommunityList, BgpLargeCommunityList};
+use connector::BgpConnector;
 use extcommunity::BgpExtCommunityList;
 use localpref::BgpLocalpref;
 use med::BgpMED;
@@ -44,22 +46,22 @@ use unknown::BgpAttrUnknown;
 
 /// BGP path attribute mandatory parameters - typecode and flags
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpAttrParams {
     pub typecode: u8,
     pub flags: u8,
 }
 
 pub trait BgpAttr: std::fmt::Display + std::fmt::Debug {
-    fn encode_to(
-        &self,
-        peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError>;
+    fn encode_to(&self, peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError>;
     fn attr(&self) -> BgpAttrParams;
 }
 
 /// BGP path attribute
-#[derive(Debug,Hash,PartialOrd,Ord,PartialEq,Eq)]
+#[derive(Debug, Hash, PartialOrd, Ord, PartialEq, Eq)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub enum BgpAttrItem {
     Origin(BgpOrigin),
     ASPath(BgpASpath),
@@ -77,6 +79,7 @@ pub enum BgpAttrItem {
     LargeCommunityList(BgpLargeCommunityList),
     PMSITunnel(BgpPMSITunnel),
     AttrSet(BgpAttrSet),
+    Connector(BgpConnector),
     Unknown(BgpAttrUnknown),
 }
 
@@ -121,10 +124,11 @@ impl BgpAttrItem {
             22 => Ok(BgpAttrItem::PMSITunnel(BgpPMSITunnel::decode_from(
                 peer, buf,
             )?)),
+            20 => Ok(BgpAttrItem::Connector(BgpConnector::decode_from(buf)?)),
             32 => Ok(BgpAttrItem::LargeCommunityList(
                 BgpLargeCommunityList::decode_from(buf)?,
             )),
-            20 | 21 =>
+            21 =>
             //deprecated
             {
                 Ok(BgpAttrItem::Unknown(BgpAttrUnknown::decode_from(
@@ -169,26 +173,18 @@ impl BgpAttrItem {
         let attrlen = attr.encode_to(peer, &mut buf[curpos..])?;
         if (attrparams.flags & 16) > 0 {
             if attrlen > 65535 {
-                return Err(BgpError::static_str(
-                    "Invalid path attribute length",
-                ));
+                return Err(BgpError::static_str("Invalid path attribute length"));
             }
             setn_u16(attrlen as u16, &mut buf[2..4]);
         } else {
             if attrlen > 255 {
-                return Err(BgpError::static_str(
-                    "Invalid path attribute length",
-                ));
+                return Err(BgpError::static_str("Invalid path attribute length"));
             }
             buf[2] = attrlen as u8;
         }
         Ok(curpos + attrlen)
     }
-    pub fn encode_to(
-        &self,
-        peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
+    pub fn encode_to(&self, peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
         match self {
             BgpAttrItem::Origin(pa) => BgpAttrItem::encode_bgpattr(pa, peer, buf),
             BgpAttrItem::ASPath(pa) => BgpAttrItem::encode_bgpattr(pa, peer, buf),
@@ -206,38 +202,8 @@ impl BgpAttrItem {
             BgpAttrItem::LargeCommunityList(pa) => BgpAttrItem::encode_bgpattr(pa, peer, buf),
             BgpAttrItem::PMSITunnel(pa) => BgpAttrItem::encode_bgpattr(pa, peer, buf),
             BgpAttrItem::AttrSet(pa) => BgpAttrItem::encode_bgpattr(pa, peer, buf),
+            BgpAttrItem::Connector(pa) => BgpAttrItem::encode_bgpattr(pa, peer, buf),
             BgpAttrItem::Unknown(pa) => BgpAttrItem::encode_bgpattr(pa, peer, buf),
         }
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpAttrItem {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_map(Some(1))?;
-        match self {
-            BgpAttrItem::Origin(pa) => state.serialize_entry("Origin",pa)?,
-            BgpAttrItem::ASPath(pa) => state.serialize_entry("ASPath",pa)?,
-            BgpAttrItem::NextHop(pa) => state.serialize_entry("NextHop",pa)?,
-            BgpAttrItem::MED(pa) => state.serialize_entry("MED",pa)?,
-            BgpAttrItem::LocalPref(pa) => state.serialize_entry("LocalPref",pa)?,
-            BgpAttrItem::AtomicAggregate(pa) => state.serialize_entry("AtomicAggregate",pa)?,
-            BgpAttrItem::AggregatorAS(pa) => state.serialize_entry("AggregatorAS",pa)?,
-            BgpAttrItem::CommunityList(pa) => state.serialize_entry("CommunityList",pa)?,
-            BgpAttrItem::OriginatorID(pa) => state.serialize_entry("OriginatorID",pa)?,
-            BgpAttrItem::ClusterList(pa) => state.serialize_entry("ClusterList",pa)?,
-            //BgpAttrItem::MPUpdates(pa) => state.serialize_entry("MPUpdates",pa),
-            //BgpAttrItem::MPWithdraws(pa) => state.serialize_entry("MPWithdraws",pa),
-            BgpAttrItem::ExtCommunityList(pa) => state.serialize_entry("ExtCommunityList",pa)?,
-            BgpAttrItem::LargeCommunityList(pa) => state.serialize_entry("LargeCommunityList",pa)?,
-            BgpAttrItem::PMSITunnel(pa) => state.serialize_entry("PMSITunnel",pa)?,
-            BgpAttrItem::AttrSet(pa) => state.serialize_entry("AttrSet",pa)?,
-            BgpAttrItem::Unknown(pa) => state.serialize_entry("Unknown",pa)?,
-            _ => {}
-        };
-        state.end()
     }
 }

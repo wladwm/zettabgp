@@ -9,15 +9,28 @@
 //! This module describes NLRI data structures for ipv4
 
 use crate::afi::*;
+#[cfg(feature = "serialization")]
+use serde::{Deserialize, Serialize};
+use std::default::Default;
 use std::net::Ipv4Addr;
 
 /// ipv4 prefix unicast/multicast NLRI
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpAddrV4 {
     /// network prefix
     pub addr: Ipv4Addr,
     /// prefix length 0..32
     pub prefixlen: u8,
+}
+impl Default for BgpAddrV4 {
+    fn default() -> Self {
+        BgpAddrV4 {
+            addr: Ipv4Addr::new(127, 0, 0, 1),
+            prefixlen: 32,
+        }
+    }
 }
 impl BgpAddrV4 {
     /// Constructs new ipv4 prefix
@@ -111,6 +124,10 @@ impl BgpAddrV4 {
             self.in_subnet(&a.range_first()) && self.in_subnet(&a.range_last())
         }
     }
+    /// Check if given address is multicast
+    pub fn is_multicast(&self) -> bool {
+        (self.addr.octets() != [255, 255, 255, 255]) && self.addr.octets()[0] >= 224
+    }
     pub fn from_bits(bits: u8, buf: &[u8]) -> Result<(BgpAddrV4, usize), BgpError> {
         if bits > 32 {
             return Err(BgpError::from_string(format!(
@@ -118,7 +135,7 @@ impl BgpAddrV4 {
                 bits
             )));
         }
-        let mut bf = [0 as u8; 4];
+        let mut bf = [0_u8; 4];
         if bits == 0 {
             return Ok((
                 BgpAddrV4 {
@@ -142,7 +159,7 @@ impl BgpAddrV4 {
         if self.prefixlen == 0 {
             return Ok((0, 0));
         }
-        let mut bf = [0 as u8; 4];
+        let mut bf = [0_u8; 4];
         bf.clone_from_slice(&self.addr.octets());
         let bytes = ((self.prefixlen + 7) / 8) as usize;
         buf[0..bytes].clone_from_slice(&bf[0..bytes]);
@@ -184,6 +201,8 @@ impl std::fmt::Display for BgpAddrV4 {
     }
 }
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpIPv4RD {
     pub rd: BgpRD,
     pub addr: std::net::Ipv4Addr,
@@ -227,26 +246,20 @@ impl BgpAddrItem<BgpIPv4RD> for BgpIPv4RD {
     }
 }
 
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpAddrV4 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("BgpAddrV4", 2)?;
-        state.serialize_field("addr", &self.addr)?;
-        state.serialize_field("len", &self.prefixlen)?;
-        state.end()
-    }
-}
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_ipv4_parse() {
-        assert_eq!("10.0.0.0".parse::<BgpAddrV4>(),Ok(BgpAddrV4::new(Ipv4Addr::new(10, 0, 0, 0), 32)));
-        assert_eq!("10.0.0.0/8".parse::<BgpAddrV4>(),Ok(BgpAddrV4::new(Ipv4Addr::new(10, 0, 0, 0), 8)));
+        assert_eq!(
+            "10.0.0.0".parse::<BgpAddrV4>(),
+            Ok(BgpAddrV4::new(Ipv4Addr::new(10, 0, 0, 0), 32))
+        );
+        assert_eq!(
+            "10.0.0.0/8".parse::<BgpAddrV4>(),
+            Ok(BgpAddrV4::new(Ipv4Addr::new(10, 0, 0, 0), 8))
+        );
     }
 
     #[test]

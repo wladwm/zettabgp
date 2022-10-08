@@ -8,11 +8,14 @@
 
 //! This module describes NLRI data structures for vpls
 
-use crate::*;
 use crate::afi::*;
+#[cfg(feature = "serialization")]
+use serde::{Deserialize, Serialize};
 
 /// BGP VPLS NLRI
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpAddrL2 {
     pub rd: BgpRD,
     pub site: u16,
@@ -39,15 +42,15 @@ impl BgpItemLong<BgpAddrL2> for BgpAddrL2 {
         })
     }
     fn pack_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
-        if buf.len()<15 {
+        if buf.len() < 15 {
             return Err(BgpError::insufficient_buffer_size());
         }
         self.rd.encode_rd_to(buf)?;
-        setn_u16(self.site,&mut buf[8..10]);
-        setn_u16(self.offset,&mut buf[10..12]);
-        setn_u16(self.range,&mut buf[12..14]);
-        let r=self.labels.set_bits_to(&mut buf[14..])?;
-        Ok(r.1+14)
+        setn_u16(self.site, &mut buf[8..10]);
+        setn_u16(self.offset, &mut buf[10..12]);
+        setn_u16(self.range, &mut buf[12..14]);
+        let r = self.labels.set_bits_to(&mut buf[14..])?;
+        Ok(r.1 + 14)
     }
 }
 impl std::fmt::Display for BgpAddrL2 {
@@ -60,6 +63,8 @@ impl std::fmt::Display for BgpAddrL2 {
     }
 }
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpL2 {
     pub rd: BgpRD,
     pub site: u16,
@@ -108,21 +113,5 @@ impl BgpAddrItem<BgpL2> for BgpL2 {
         setn_u16(self.offset, &mut buf[pos + 2..]);
         setn_u16(self.range, &mut buf[pos + 4..]);
         Ok(pos + 6)
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpAddrL2 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("BgpAddrL2", 5)?;
-        state.serialize_field("rd", &self.rd)?;
-        state.serialize_field("site", &self.site)?;
-        state.serialize_field("offset", &self.offset)?;
-        state.serialize_field("range", &self.range)?;
-        state.serialize_field("labels", &self.labels)?;
-        state.end()
     }
 }

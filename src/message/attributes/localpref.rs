@@ -8,25 +8,26 @@
 
 //! BGP "local preference" path attribute
 
-use crate::*;
 use crate::message::attributes::*;
-
+#[cfg(feature = "serialization")]
+use serde::{Deserialize, Serialize};
 
 /// BGP local preference path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct BgpLocalpref {
     pub value: u32,
 }
 impl BgpLocalpref {
     pub fn new(v: u32) -> BgpLocalpref {
-        BgpLocalpref {
-            value: v
-        }
+        BgpLocalpref { value: v }
     }
     pub fn decode_from(buf: &[u8]) -> Result<BgpLocalpref, BgpError> {
         if buf.len() >= 4 {
             Ok(BgpLocalpref {
-                value: getn_u32(&buf),
+                value: getn_u32(buf),
             })
         } else {
             Err(BgpError::static_str("Invalid localpref length"))
@@ -52,26 +53,12 @@ impl BgpAttr for BgpLocalpref {
             flags: 64,
         }
     }
-    fn encode_to(
-        &self,
-        _peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
+    fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
         if buf.len() >= 4 {
             setn_u32(self.value, buf);
             Ok(4)
         } else {
             Err(BgpError::static_str("Invalid localpref length"))
         }
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpLocalpref {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_u32(self.value)
     }
 }

@@ -8,13 +8,14 @@
 
 //! BGP "Aggregator AS" path attribute
 
-use crate::*;
 use crate::message::attributes::*;
 #[cfg(feature = "serialization")]
-use serde::ser::{SerializeStruct};
+use serde::{Deserialize, Serialize};
 
 /// BGP "Aggregator AS" path attribute struct
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpAggregatorAS {
     /// Autonomous system number
     pub asn: u32,
@@ -22,32 +23,23 @@ pub struct BgpAggregatorAS {
     pub addr: std::net::Ipv4Addr,
 }
 impl BgpAggregatorAS {
-    pub fn decode_from(
-        peer: &BgpSessionParams,
-        buf: &[u8],
-    ) -> Result<BgpAggregatorAS, BgpError> {
+    pub fn decode_from(peer: &BgpSessionParams, buf: &[u8]) -> Result<BgpAggregatorAS, BgpError> {
         if peer.has_as32bit {
             if buf.len() == 8 {
                 Ok(BgpAggregatorAS {
-                    asn: getn_u32(&buf),
+                    asn: getn_u32(buf),
                     addr: decode_addrv4_from(&buf[4..8])?,
                 })
             } else {
-                Err(BgpError::static_str(
-                    "Invalid AggregatorAS 32-bit length",
-                ))
+                Err(BgpError::static_str("Invalid AggregatorAS 32-bit length"))
             }
+        } else if buf.len() == 6 {
+            Ok(BgpAggregatorAS {
+                asn: getn_u16(buf) as u32,
+                addr: decode_addrv4_from(&buf[2..6])?,
+            })
         } else {
-            if buf.len() == 6 {
-                Ok(BgpAggregatorAS {
-                    asn: getn_u16(&buf) as u32,
-                    addr: decode_addrv4_from(&buf[2..6])?,
-                })
-            } else {
-                Err(BgpError::static_str(
-                    "Invalid AggregatorAS 16-bit length",
-                ))
-            }
+            Err(BgpError::static_str("Invalid AggregatorAS 16-bit length"))
         }
     }
 }
@@ -71,23 +63,7 @@ impl BgpAttr for BgpAggregatorAS {
             flags: 64,
         }
     }
-    fn encode_to(
-        &self,
-        peer: &BgpSessionParams,
-        _buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
+    fn encode_to(&self, peer: &BgpSessionParams, _buf: &mut [u8]) -> Result<usize, BgpError> {
         Ok(if peer.has_as32bit { 4 } else { 2 })
-    }
-}
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpAggregatorAS {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("AggregatorAS", 2)?;
-        state.serialize_field("addr", &self.addr)?;
-        state.serialize_field("asn", &self.asn)?;
-        state.end()
     }
 }

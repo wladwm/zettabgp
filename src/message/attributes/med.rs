@@ -9,9 +9,14 @@
 //! BGP "multi-exit discriminator" path attribute
 
 use crate::message::attributes::*;
+#[cfg(feature = "serialization")]
+use serde::{Deserialize, Serialize};
 
 /// BGP MED (multi-exit discriminator) path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct BgpMED {
     pub value: u32,
 }
@@ -22,7 +27,7 @@ impl BgpMED {
     pub fn decode_from(buf: &[u8]) -> Result<BgpMED, BgpError> {
         if buf.len() >= 4 {
             Ok(BgpMED {
-                value: getn_u32(&buf),
+                value: getn_u32(buf),
             })
         } else {
             Err(BgpError::static_str("Invalid MED length"))
@@ -55,15 +60,5 @@ impl BgpAttr for BgpMED {
         } else {
             Err(BgpError::static_str("Invalid MED length"))
         }
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpMED {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_u32(self.value)
     }
 }

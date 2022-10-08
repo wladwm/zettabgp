@@ -8,24 +8,31 @@
 
 //! BGP "ASpath" path attribute
 
-use crate::*;
+use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 use crate::message::attributes::*;
 #[cfg(feature = "serialization")]
-use serde::ser::{SerializeSeq};
+use serde::{Deserialize, Serialize};
 
 /// BGP AS - element of aspath
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct BgpAS {
     pub value: u32,
 }
 /// BGP as-path path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct BgpASpath {
     pub value: Vec<BgpAS>,
 }
 
 impl BgpAS {
-    pub fn new(v:u32) -> BgpAS {
+    pub fn new(v: u32) -> BgpAS {
         BgpAS { value: v }
     }
     pub fn tonumb(&self) -> u32 {
@@ -46,6 +53,22 @@ impl PartialEq for BgpAS {
         self.tonumb() == other.tonumb()
     }
 }
+impl Eq for BgpAS{}
+impl PartialOrd for BgpAS {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.value.partial_cmp(&other.value)
+    }
+}
+impl Ord for BgpAS {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.value.cmp(&other.value)
+    }
+}
+impl Hash for BgpAS {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.value.hash(state)
+    }
+}
 impl std::fmt::Display for BgpAS {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if (self.value & 0xffff) == 0 {
@@ -64,10 +87,7 @@ impl BgpASpath {
             value: sv.into_iter().map(|q| q.into()).collect(),
         }
     }
-    pub fn decode_from(
-        peer: &BgpSessionParams,
-        buf: &[u8],
-    ) -> Result<BgpASpath, BgpError> {
+    pub fn decode_from(peer: &BgpSessionParams, buf: &[u8]) -> Result<BgpASpath, BgpError> {
         if buf.len() < 2 {
             return Ok(BgpASpath { value: Vec::new() });
         }
@@ -90,6 +110,11 @@ impl BgpASpath {
         Ok(BgpASpath { value: v })
     }
 }
+impl Default for BgpASpath {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl std::fmt::Debug for BgpASpath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BgpASpath")
@@ -109,29 +134,25 @@ impl BgpAttr for BgpASpath {
             flags: 0x50,
         }
     }
-    fn encode_to(
-        &self,
-        peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
+    fn encode_to(&self, peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
         let mut pos: usize;
-        if self.value.len()<1 {
-	  return Ok(0);
-	}
+        if self.value.is_empty() {
+            return Ok(0);
+        }
         if peer.has_as32bit {
-            if buf.len()<(2+self.value.len()*4) {
+            if buf.len() < (2 + self.value.len() * 4) {
                 return Err(BgpError::insufficient_buffer_size());
             }
-            buf[0]=2;//as-sequence
-            buf[1]=self.value.len() as u8;
-            pos=2;
+            buf[0] = 2; //as-sequence
+            buf[1] = self.value.len() as u8;
+            pos = 2;
         } else {
-            if buf.len()<(2+self.value.len()*2) {
+            if buf.len() < (2 + self.value.len() * 2) {
                 return Err(BgpError::insufficient_buffer_size());
             }
-            buf[0]=2;//as-sequence
-            buf[1]=self.value.len() as u8;
-            pos=2;
+            buf[0] = 2; //as-sequence
+            buf[1] = self.value.len() as u8;
+            pos = 2;
         }
         for i in &self.value {
             if peer.has_as32bit {
@@ -143,28 +164,5 @@ impl BgpAttr for BgpASpath {
             }
         }
         Ok(pos)
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpAS {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(format!("{}", self).as_str())
-    }
-}
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpASpath {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_seq(Some(self.value.len()))?;
-        for l in self.value.iter() {
-            state.serialize_element(&l)?;
-        }
-        state.end()
     }
 }

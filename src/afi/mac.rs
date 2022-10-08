@@ -9,9 +9,14 @@
 //! This module describes NLRI data structures for mac address
 
 use crate::afi::*;
+#[cfg(feature = "serialization")]
+use serde::{Deserialize, Serialize};
 
 /// Six-byte ethernet mac address. Used in EVPN.
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct MacAddress {
     pub mac_address: [u8; 6],
 }
@@ -19,16 +24,18 @@ impl MacAddress {
     /// Construct new zero mac address.
     pub fn new() -> MacAddress {
         MacAddress {
-            mac_address: [0 as u8; 6],
+            mac_address: [0_u8; 6],
         }
     }
     /// Construct new mac address from 6 bytes in network order.
     pub fn from(b: &[u8]) -> MacAddress {
-        MacAddress { mac_address: [b[5],b[4],b[3],b[2],b[1],b[0]] }
+        MacAddress {
+            mac_address: [b[5], b[4], b[3], b[2], b[1], b[0]],
+        }
     }
     /// Construct new mac address from u64.
-    pub fn from_u64(s:u64) -> MacAddress {
-        let mut a = [0 as u8; 6];
+    pub fn from_u64(s: u64) -> MacAddress {
+        let mut a = [0_u8; 6];
         a[0] = (s & 0xff) as u8;
         a[1] = ((s >> 8) & 0xff) as u8;
         a[2] = ((s >> 16) & 0xff) as u8;
@@ -39,7 +46,17 @@ impl MacAddress {
     }
     /// Pack to u64.
     pub fn to_u64(&self) -> u64 {
-        (self.mac_address[5] as u64) << 40 | (self.mac_address[4] as u64) << 32 | (self.mac_address[3] as u64) << 24 | (self.mac_address[2] as u64) << 16 | (self.mac_address[1] as u64) << 8 | (self.mac_address[0] as u64)
+        (self.mac_address[5] as u64) << 40
+            | (self.mac_address[4] as u64) << 32
+            | (self.mac_address[3] as u64) << 24
+            | (self.mac_address[2] as u64) << 16
+            | (self.mac_address[1] as u64) << 8
+            | (self.mac_address[0] as u64)
+    }
+}
+impl Default for MacAddress {
+    fn default() -> Self {
+        Self::new()
     }
 }
 impl std::fmt::Display for MacAddress {
@@ -73,13 +90,13 @@ impl std::str::FromStr for MacAddress {
     type Err = BgpError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut mac:u64=0;
-        let mut cnt:usize=0;
+        let mut mac: u64 = 0;
+        let mut cnt: usize = 0;
         for c in s.chars() {
-          if let Some(d) = c.to_digit(16) {
-              mac = (mac << 4) | (d as u64);
-              cnt = cnt + 1;
-          }
+            if let Some(d) = c.to_digit(16) {
+                mac = (mac << 4) | (d as u64);
+                cnt += 1;
+            }
         }
         if cnt < 1 {
             return Err(BgpError::static_str("Invalid mac address"));
@@ -87,16 +104,6 @@ impl std::str::FromStr for MacAddress {
         Ok(MacAddress::from_u64(mac))
     }
 }
-#[cfg(feature = "serialization")]
-impl serde::Serialize for MacAddress {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.to_string().as_str())
-    }
-}
-
 /// ipv4 prefix unicast/multicast NLRI
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BgpAddrMac {
@@ -110,7 +117,7 @@ impl BgpAddrMac {
     /// ```
     /// use zettabgp::afi::mac::MacAddress;
     /// use zettabgp::prelude::BgpAddrMac;
-    /// 
+    ///
     /// let pfx = BgpAddrMac::new(MacAddress::from_u64(0x121314151600),40);
     /// ```
     pub fn new(address: MacAddress, prefix_len: u8) -> BgpAddrMac {
@@ -126,7 +133,7 @@ impl BgpAddrMac {
     /// ```
     /// use zettabgp::afi::mac::MacAddress;
     /// use zettabgp::prelude::BgpAddrMac;
-    /// 
+    ///
     /// assert!(BgpAddrMac::new(MacAddress::from_u64(0x121314151600),40).in_subnet(&MacAddress::from_u64(0x121314151601)))
     /// ```
     pub fn in_subnet(&self, a: &MacAddress) -> bool {
@@ -145,7 +152,7 @@ impl BgpAddrMac {
     /// ```
     /// use zettabgp::afi::mac::MacAddress;
     /// use zettabgp::prelude::BgpAddrMac;
-    /// 
+    ///
     /// assert_eq!(BgpAddrMac::new(MacAddress::from_u64(0x1213141516ab),40).range_first() , MacAddress::from_u64(0x121314151600) );
     /// ```
     pub fn range_first(&self) -> MacAddress {
@@ -155,7 +162,7 @@ impl BgpAddrMac {
     /// ```
     /// use zettabgp::afi::mac::MacAddress;
     /// use zettabgp::prelude::BgpAddrMac;
-    /// 
+    ///
     /// assert_eq!(BgpAddrMac::new(MacAddress::from_u64(0x1213141516ab),40).range_last() , MacAddress::from_u64(0x1213141516ff));
     /// ```
     pub fn range_last(&self) -> MacAddress {

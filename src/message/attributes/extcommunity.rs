@@ -10,10 +10,12 @@
 
 use crate::message::attributes::*;
 #[cfg(feature = "serialization")]
-use serde::ser::SerializeSeq;
+use serde::{Deserialize, Serialize};
 
 /// BGP extended community - element for BgpExtCommunityList path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpExtCommunity {
     pub ctype: u8,
     pub subtype: u8,
@@ -155,6 +157,9 @@ impl std::fmt::Display for BgpExtCommunity {
 
 /// BGP extended community list path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct BgpExtCommunityList {
     pub value: std::collections::BTreeSet<BgpExtCommunity>,
 }
@@ -179,6 +184,11 @@ impl BgpExtCommunityList {
             pos += 8;
         }
         Ok(BgpExtCommunityList { value: v })
+    }
+}
+impl Default for BgpExtCommunityList {
+    fn default() -> Self {
+        Self::new()
     }
 }
 impl std::fmt::Debug for BgpExtCommunityList {
@@ -207,27 +217,5 @@ impl BgpAttr for BgpExtCommunityList {
             pos += ln;
         }
         Ok(pos)
-    }
-}
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpExtCommunity {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(format!("{}", self).as_str())
-    }
-}
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpExtCommunityList {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_seq(Some(self.value.len()))?;
-        for l in self.value.iter() {
-            state.serialize_element(&l)?;
-        }
-        state.end()
     }
 }

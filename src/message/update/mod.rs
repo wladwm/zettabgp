@@ -33,11 +33,8 @@ impl BgpUpdateMessage {
     /// returns origin attribute.
     pub fn get_attr_origin(&self) -> Option<&BgpOrigin> {
         for i in self.attrs.iter() {
-            match i {
-                BgpAttrItem::Origin(n) => {
-                    return Some(&n);
-                }
-                _ => {}
+            if let BgpAttrItem::Origin(n) = i {
+                return Some(n);
             }
         }
         None
@@ -45,11 +42,8 @@ impl BgpUpdateMessage {
     /// returns aspath attribute.
     pub fn get_attr_aspath(&self) -> Option<&BgpASpath> {
         for i in self.attrs.iter() {
-            match i {
-                BgpAttrItem::ASPath(n) => {
-                    return Some(&n);
-                }
-                _ => {}
+            if let BgpAttrItem::ASPath(n) = i {
+                return Some(n);
             }
         }
         None
@@ -57,11 +51,8 @@ impl BgpUpdateMessage {
     /// returns community list attribute.
     pub fn get_attr_communitylist(&self) -> Option<&BgpCommunityList> {
         for i in self.attrs.iter() {
-            match i {
-                BgpAttrItem::CommunityList(n) => {
-                    return Some(&n);
-                }
-                _ => {}
+            if let BgpAttrItem::CommunityList(n) = i {
+                return Some(n);
             }
         }
         None
@@ -69,11 +60,8 @@ impl BgpUpdateMessage {
     /// returns large community list attribute.
     pub fn get_attr_largecommunitylist(&self) -> Option<&BgpLargeCommunityList> {
         for i in self.attrs.iter() {
-            match i {
-                BgpAttrItem::LargeCommunityList(n) => {
-                    return Some(&n);
-                }
-                _ => {}
+            if let BgpAttrItem::LargeCommunityList(n) = i {
+                return Some(n);
             }
         }
         None
@@ -81,11 +69,8 @@ impl BgpUpdateMessage {
     /// returns extended community list attribute.
     pub fn get_attr_extcommunitylist(&self) -> Option<&BgpExtCommunityList> {
         for i in self.attrs.iter() {
-            match i {
-                BgpAttrItem::ExtCommunityList(n) => {
-                    return Some(&n);
-                }
-                _ => {}
+            if let BgpAttrItem::ExtCommunityList(n) = i {
+                return Some(n);
             }
         }
         None
@@ -93,11 +78,8 @@ impl BgpUpdateMessage {
     /// returns next hop attribute.
     pub fn get_attr_nexthop(&self) -> Option<&BgpNextHop> {
         for i in self.attrs.iter() {
-            match i {
-                BgpAttrItem::NextHop(n) => {
-                    return Some(&n);
-                }
-                _ => {}
+            if let BgpAttrItem::NextHop(n) = i {
+                return Some(n);
             }
         }
         None
@@ -105,11 +87,8 @@ impl BgpUpdateMessage {
     /// returns MPUpdates
     pub fn get_mpupdates(&self) -> Option<&BgpMPUpdates> {
         for i in self.attrs.iter() {
-            match i {
-                BgpAttrItem::MPUpdates(n) => {
-                    return Some(&n);
-                }
-                _ => {}
+            if let BgpAttrItem::MPUpdates(n) = i {
+                return Some(n);
             }
         }
         None
@@ -117,14 +96,16 @@ impl BgpUpdateMessage {
     /// returns MPWithdraws
     pub fn get_mpwithdraws(&self) -> Option<&BgpMPWithdraws> {
         for i in self.attrs.iter() {
-            match i {
-                BgpAttrItem::MPWithdraws(n) => {
-                    return Some(&n);
-                }
-                _ => {}
+            if let BgpAttrItem::MPWithdraws(n) = i {
+                return Some(n);
             }
         }
         None
+    }
+}
+impl Default for BgpUpdateMessage {
+    fn default() -> Self {
+        Self::new()
     }
 }
 impl BgpMessage for BgpUpdateMessage {
@@ -216,7 +197,7 @@ impl BgpMessage for BgpUpdateMessage {
         match peer.peer_mode {
             BgpTransportMode::IPv4 => match self.withdraws {
                 BgpAddrs::IPV4U(ref wdrw) => {
-                    let wlen = encode_bgpitems_to(&wdrw, &mut buf[curpos + 2..])?;
+                    let wlen = encode_bgpitems_to(wdrw, &mut buf[curpos + 2..])?;
                     if wlen > 65535 {
                         return Err(BgpError::too_many_data());
                     }
@@ -224,7 +205,7 @@ impl BgpMessage for BgpUpdateMessage {
                     curpos += 2 + wlen;
                 }
                 BgpAddrs::IPV4UP(ref wdrw) => {
-                    let wlen = encode_pathid_bgpitems_to(&wdrw, &mut buf[curpos + 2..])?;
+                    let wlen = encode_pathid_bgpitems_to(wdrw, &mut buf[curpos + 2..])?;
                     if wlen > 65535 {
                         return Err(BgpError::too_many_data());
                     }
@@ -238,7 +219,7 @@ impl BgpMessage for BgpUpdateMessage {
             },
             BgpTransportMode::IPv6 => match self.withdraws {
                 BgpAddrs::IPV6U(ref wdrw) => {
-                    let wlen = encode_bgpitems_to(&wdrw, &mut buf[curpos + 2..])?;
+                    let wlen = encode_bgpitems_to(wdrw, &mut buf[curpos + 2..])?;
                     if wlen > 65535 {
                         return Err(BgpError::too_many_data());
                     }
@@ -246,7 +227,7 @@ impl BgpMessage for BgpUpdateMessage {
                     curpos += 2 + wlen;
                 }
                 BgpAddrs::IPV6UP(ref wdrw) => {
-                    let wlen = encode_pathid_bgpitems_to(&wdrw, &mut buf[curpos + 2..])?;
+                    let wlen = encode_pathid_bgpitems_to(wdrw, &mut buf[curpos + 2..])?;
                     if wlen > 65535 {
                         return Err(BgpError::too_many_data());
                     }
@@ -274,19 +255,19 @@ impl BgpMessage for BgpUpdateMessage {
         match peer.peer_mode {
             BgpTransportMode::IPv4 => match self.updates {
                 BgpAddrs::IPV4U(ref upds) => {
-                    curpos += encode_bgpitems_to(&upds, &mut buf[curpos..])?;
+                    curpos += encode_bgpitems_to(upds, &mut buf[curpos..])?;
                 }
                 BgpAddrs::IPV4UP(ref upds) => {
-                    curpos += encode_pathid_bgpitems_to(&upds, &mut buf[curpos..])?;
+                    curpos += encode_pathid_bgpitems_to(upds, &mut buf[curpos..])?;
                 }
                 _ => {}
             },
             BgpTransportMode::IPv6 => match self.updates {
                 BgpAddrs::IPV6U(ref upds) => {
-                    curpos += encode_bgpitems_to(&upds, &mut buf[curpos..])?;
+                    curpos += encode_bgpitems_to(upds, &mut buf[curpos..])?;
                 }
                 BgpAddrs::IPV6UP(ref upds) => {
-                    curpos += encode_pathid_bgpitems_to(&upds, &mut buf[curpos..])?;
+                    curpos += encode_pathid_bgpitems_to(upds, &mut buf[curpos..])?;
                 }
                 _ => {}
             },

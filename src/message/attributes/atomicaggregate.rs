@@ -8,11 +8,15 @@
 
 //! BGP "Atomic aggregate" path attribute
 
-use crate::*;
 use crate::message::attributes::*;
+#[cfg(feature = "serialization")]
+use serde::{Deserialize, Serialize};
 
 /// BGP Atmic aggregate path attribute
 #[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct BgpAtomicAggregate {
     pub value: std::net::IpAddr,
 }
@@ -22,7 +26,7 @@ impl BgpAtomicAggregate {
         buf: &[u8],
     ) -> Result<BgpAtomicAggregate, BgpError> {
         Ok(BgpAtomicAggregate {
-            value: if buf.len() == 0 {
+            value: if buf.is_empty() {
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0))
             } else {
                 decode_addr_from(buf)?
@@ -39,7 +43,7 @@ impl std::fmt::Debug for BgpAtomicAggregate {
 }
 impl std::fmt::Display for BgpAtomicAggregate {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "BgpAtomicAggregate {:?}", self.value)
+        self.value.fmt(f)
     }
 }
 impl BgpAttr for BgpAtomicAggregate {
@@ -49,21 +53,7 @@ impl BgpAttr for BgpAtomicAggregate {
             flags: 64,
         }
     }
-    fn encode_to(
-        &self,
-        _peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError> {
+    fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
         encode_addr_to(&self.value, buf)
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpAtomicAggregate {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.value.to_string().as_str())
     }
 }

@@ -8,27 +8,21 @@
 
 //! This module contains BGP messages
 
-use crate::*;
 use crate::error::*;
+use crate::*;
 
-pub mod open;
-pub mod update;
-pub mod notification;
-pub mod keepalive;
 pub mod attributes;
+pub mod keepalive;
+pub mod notification;
+pub mod open;
+pub use open::*;
+pub mod update;
+pub use update::*;
 
 /// trait BgpMessage represents BGP protocol message
 pub trait BgpMessage {
-    fn decode_from(
-        &mut self,
-        peer: &BgpSessionParams,
-        buf: &[u8],
-    ) -> Result<(), BgpError>;
-    fn encode_to(
-        &self,
-        peer: &BgpSessionParams,
-        buf: &mut [u8],
-    ) -> Result<usize, BgpError>;
+    fn decode_from(&mut self, peer: &BgpSessionParams, buf: &[u8]) -> Result<(), BgpError>;
+    fn encode_to(&self, peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError>;
 }
 
 /// Bgp message type: open, update, notification or keepalive.
@@ -61,4 +55,3 @@ impl BgpMessageType {
         }
     }
 }
-

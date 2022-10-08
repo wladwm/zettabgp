@@ -9,15 +9,27 @@
 //! This module describes NLRI data structures for ipv6
 
 use crate::afi::*;
+#[cfg(feature = "serialization")]
+use serde::{Deserialize, Serialize};
 use std::net::Ipv6Addr;
 
 /// ipv6 prefix unicast/multicast NLRI
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpAddrV6 {
     /// network prefix
     pub addr: Ipv6Addr,
     /// prefix length 0..128
     pub prefixlen: u8,
+}
+impl Default for BgpAddrV6 {
+    fn default() -> Self {
+        BgpAddrV6 {
+            addr: Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1),
+            prefixlen: 128,
+        }
+    }
 }
 impl BgpAddrV6 {
     /// Constructs new ipv6 prefix
@@ -100,7 +112,6 @@ impl BgpAddrV6 {
     ///
     /// assert_eq!(BgpAddrV6::new(Ipv6Addr::new(0x2a02,0,0,0,0,0,0,0x100),112).range_last() , Ipv6Addr::new(0x2a02,0,0,0,0,0,0,0xffff) );
     /// ```
-
     pub fn range_last(&self) -> std::net::Ipv6Addr {
         if self.prefixlen < 1 {
             std::net::Ipv6Addr::new(
@@ -122,6 +133,10 @@ impl BgpAddrV6 {
             )
         }
     }
+    /// Check if given address is multicast
+    pub fn is_multicast(&self) -> bool {
+        self.addr.octets()[0] == 255
+    }
     pub fn from_bits(bits: u8, buf: &[u8]) -> Result<(BgpAddrV6, usize), BgpError> {
         if bits > 128 {
             return Err(BgpError::from_string(format!(
@@ -129,7 +144,7 @@ impl BgpAddrV6 {
                 bits
             )));
         }
-        let mut bf = [0 as u8; 16];
+        let mut bf = [0_u8; 16];
         if bits == 0 {
             return Ok((
                 BgpAddrV6 {
@@ -153,7 +168,7 @@ impl BgpAddrV6 {
         if self.prefixlen == 0 {
             return Ok((0, 0));
         }
-        let mut bf = [0 as u8; 16];
+        let mut bf = [0_u8; 16];
         bf.clone_from_slice(&self.addr.octets());
         let bytes = ((self.prefixlen + 7) / 8) as usize;
         buf[0..bytes].clone_from_slice(&bf[0..bytes]);
@@ -196,6 +211,8 @@ impl std::fmt::Display for BgpAddrV6 {
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
 pub struct BgpIPv6RD {
     pub rd: BgpRD,
     pub addr: std::net::Ipv6Addr,
@@ -233,26 +250,26 @@ impl BgpAddrItem<BgpIPv6RD> for BgpIPv6RD {
         Ok(pos + p2)
     }
 }
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpAddrV6 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("BgpAddrV6", 2)?;
-        state.serialize_field("addr", &self.addr)?;
-        state.serialize_field("len", &self.prefixlen)?;
-        state.end()
-    }
-}
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_ipv6_parse() {
-        assert_eq!("2a02::/32".parse::<BgpAddrV6>(),Ok(BgpAddrV6::new(Ipv6Addr::new(0x2a02, 0, 0, 0, 0, 0, 0, 0), 32)));
-        assert_eq!("2a02::1".parse::<BgpAddrV6>(),Ok(BgpAddrV6::new(Ipv6Addr::new(0x2a02, 0, 0, 0, 0, 0, 0, 1), 128)));
+        assert_eq!(
+            "2a02::/32".parse::<BgpAddrV6>(),
+            Ok(BgpAddrV6::new(
+                Ipv6Addr::new(0x2a02, 0, 0, 0, 0, 0, 0, 0),
+                32
+            ))
+        );
+        assert_eq!(
+            "2a02::1".parse::<BgpAddrV6>(),
+            Ok(BgpAddrV6::new(
+                Ipv6Addr::new(0x2a02, 0, 0, 0, 0, 0, 0, 1),
+                128
+            ))
+        );
     }
 
     #[test]

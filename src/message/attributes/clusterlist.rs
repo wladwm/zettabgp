@@ -10,10 +10,13 @@
 
 use crate::message::attributes::*;
 #[cfg(feature = "serialization")]
-use serde::ser::SerializeSeq;
+use serde::{Deserialize, Serialize};
 
 /// BGP clustr list path attribute struct
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct BgpClusterList {
     pub value: Vec<std::net::IpAddr>,
 }
@@ -57,18 +60,5 @@ impl BgpAttr for BgpClusterList {
             pos += encode_addr_to(i, &mut buf[pos..])?;
         }
         Ok(pos)
-    }
-}
-#[cfg(feature = "serialization")]
-impl serde::Serialize for BgpClusterList {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_seq(Some(self.value.len()))?;
-        for l in self.value.iter() {
-            state.serialize_element(&l)?;
-        }
-        state.end()
     }
 }
