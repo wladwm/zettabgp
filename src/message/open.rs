@@ -31,12 +31,15 @@ struct BgpOpenHead {
 
 impl BgpMessage for BgpOpenMessage {
     fn decode_from(&mut self, _peer: &BgpSessionParams, buf: &[u8]) -> Result<(), BgpError> {
-        let ptr: *const u8 = buf[1..].as_ptr();
-        let ptr: *const BgpOpenHead = ptr as *const BgpOpenHead;
-        let ptr: &BgpOpenHead = unsafe { &*ptr };
         if buf[0] != 4 {
             return Err(BgpError::static_str("Invalid BGP version <> 4"));
         }
+        if buf.len() < 10 {
+            return Err(BgpError::InsufficientBufferSize);
+        }
+        let ptr: *const u8 = buf[1..].as_ptr();
+        let ptr: *const BgpOpenHead = ptr as *const BgpOpenHead;
+        let ptr: &BgpOpenHead = unsafe { &*ptr };
         self.as_num = ntoh16(ptr.as_num) as u32;
         self.hold_time = ntoh16(ptr.hold_time);
         self.router_id = std::net::Ipv4Addr::new(
@@ -50,24 +53,19 @@ impl BgpMessage for BgpOpenMessage {
         while pos < buf.len() {
             if buf[pos] != 2 {
                 return Err(BgpError::from_string(format!(
-                    "Invalid BGP capability code {:?}!",
+                    "Invalid optional parameter in BGP open message {:?}!",
                     buf[pos]
                 )));
             }
             let mut optlen = buf[pos + 1] as usize;
             pos += 2;
             while optlen > 0 {
-                match BgpCapability::from_buffer(&buf[pos..pos + optlen]) {
-                    Err(_) => {
-                        pos += optlen;
-                        break;
-                    }
-                    Ok(cap) => {
-                        self.caps.push(cap.0);
-                        optlen -= cap.1;
-                        pos += cap.1;
-                    }
-                };
+                let maybe_cap = BgpCapability::from_buffer(&buf[pos..pos+optlen])?;
+                optlen -= maybe_cap.1;
+                pos += maybe_cap.1;
+                if let Some(cap) = maybe_cap.0 {
+                    self.caps.push(cap);
+                }
             }
         }
         Ok(())

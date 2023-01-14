@@ -350,62 +350,69 @@ impl BgpCapability {
         };
         Ok(())
     }
+
+    fn from_type_and_data(captype: u8, data: &[u8]) -> Result<Option<BgpCapability>, BgpError> {
+        let cap = match captype {
+            1 => {
+                if data.len() != 4 { return Err(BgpError::static_str("Invalid capability")); }
+                let bytes: &[_; 4] = std::convert::TryFrom::try_from(data).unwrap();
+                match bytes {
+                    &[0, 1, 0, 1] => BgpCapability::SafiIPv4u,
+                    &[0, 1, 0, 133] => BgpCapability::SafiIPv4fu,
+                    &[0, 1, 0, 4] => BgpCapability::SafiIPv4m,
+                    &[0, 1, 0, 5] => BgpCapability::SafiIPv4mvpn,
+                    &[0, 1, 0, 128] => BgpCapability::SafiVPNv4u,
+                    &[0, 1, 0, 134] => BgpCapability::SafiVPNv4fu,
+                    &[0, 1, 0, 129] => BgpCapability::SafiVPNv4m,
+                    &[0, 1, 0, 2] => BgpCapability::SafiIPv4lu,
+                    &[0, 1, 0, 66] => BgpCapability::SafiIPv4mdt,
+                    &[0, 2, 0, 1] => BgpCapability::SafiIPv6u,
+                    &[0, 2, 0, 133] => BgpCapability::SafiIPv6fu,
+                    &[0, 2, 0, 4] => BgpCapability::SafiIPv6lu,
+                    &[0, 2, 0, 66] => BgpCapability::SafiIPv6mdt,
+                    &[0, 2, 0, 128] => BgpCapability::SafiVPNv6u,
+                    &[0, 2, 0, 129] => BgpCapability::SafiVPNv6m,
+                    &[0, 25, 0, 65] => BgpCapability::SafiVPLS,
+                    &[0, 25, 0, 70] => BgpCapability::SafiEVPN,
+                    _ => return Ok(None),
+                }
+            }
+            2 => {
+                if data.len() != 0 { return Err(BgpError::static_str("Invalid capability")); }
+                BgpCapability::CapRR
+            }
+            65 => {
+                if data.len() != 4 { return Err(BgpError::static_str("Invalid capability")); }
+                BgpCapability::CapASN32(getn_u32(data))
+            }
+            69 => {
+                if data.len() & 3 != 0 { return Err(BgpError::static_str("Invalid addpath capability")) }
+                let mut v = Vec::new();
+                let mut cp: usize = 0;
+                while cp < data.len() {
+                    v.push(BgpCapAddPath::decode_from(&data[cp..cp+4])?);
+                    cp += 4;
+                }
+                BgpCapability::CapAddPath(v)
+            }
+            _ => return Ok(None),
+        };
+        Ok(Some(cap))
+    }
+
     /// Decode capability code from given buffer. Returns capability and consumed buffer length.
-    pub fn from_buffer(buf: &[u8]) -> Result<(BgpCapability, usize), BgpError> {
-        if buf.len() >= 6 && buf[0] == 1 && buf[1] == 4 && buf[2] == 0 {
-            //safi
-            if buf[3] == 1 && buf[4] == 0 {
-                //ipv4
-                match buf[5] {
-                    1 => Ok((BgpCapability::SafiIPv4u, 6)),
-                    2 => Ok((BgpCapability::SafiIPv4lu, 6)),
-                    4 => Ok((BgpCapability::SafiIPv4m, 6)),
-                    5 => Ok((BgpCapability::SafiIPv4mvpn, 6)),
-                    7 => Ok((BgpCapability::SafiIPv4mdt, 6)),
-                    128 => Ok((BgpCapability::SafiVPNv4u, 6)),
-                    129 => Ok((BgpCapability::SafiVPNv4m, 6)),
-                    133 => Ok((BgpCapability::SafiIPv4fu, 6)),
-                    134 => Ok((BgpCapability::SafiVPNv4fu, 6)),
-                    _ => Err(BgpError::static_str("Invalid ipv4 safi capability")),
-                }
-            } else if buf[3] == 2 && buf[4] == 0 {
-                //ipv6
-                match buf[5] {
-                    1 => Ok((BgpCapability::SafiIPv6u, 6)),
-                    4 => Ok((BgpCapability::SafiIPv6lu, 6)),
-                    7 => Ok((BgpCapability::SafiIPv6mdt, 6)),
-                    128 => Ok((BgpCapability::SafiVPNv6u, 6)),
-                    129 => Ok((BgpCapability::SafiVPNv6m, 6)),
-                    133 => Ok((BgpCapability::SafiIPv6fu, 6)),
-                    _ => Err(BgpError::static_str("Invalid ipv6 safi capability")),
-                }
-            } else if buf[3] == 25 && buf[4] == 0 && buf[5] == 65 {
-                match buf[5] {
-                    65 => Ok((BgpCapability::SafiVPLS, 6)),
-                    70 => Ok((BgpCapability::SafiEVPN, 6)),
-                    _ => Err(BgpError::static_str("Invalid vpls safi capability")),
-                }
-            } else {
-                Err(BgpError::static_str("Invalid capability"))
-            }
-        } else if buf.len() >= 6 && buf[0] == 65 && buf[1] == 4 {
-            Ok((BgpCapability::CapASN32(getn_u32(&buf[2..6])), 6))
-        } else if buf.len() >= 2 && buf[0] == 2 && buf[1] == 0 {
-            Ok((BgpCapability::CapRR, 2))
-        } else if buf.len() >= 6 && buf[0] == 69 {
-            if (buf[1] & 3) != 0 {
-                return Err(BgpError::static_str("Invalid addpath capability"));
-            }
-            let mut v = Vec::<BgpCapAddPath>::new();
-            let mut cp: usize = 0;
-            while cp < (buf[1] as usize) {
-                v.push(BgpCapAddPath::decode_from(&buf[cp + 2..cp + 6])?);
-                cp += 4;
-            }
-            Ok((BgpCapability::CapAddPath(v), cp + 2))
-        } else {
-            Err(BgpError::static_str("Invalid capability"))
+    pub fn from_buffer(buf: &[u8]) -> Result<(Option<BgpCapability>, usize), BgpError> {
+        if buf.len() < 2 {
+            return Err(BgpError::InsufficientBufferSize);
         }
+        let captype = buf[0];
+        let datalength = buf[1] as usize;
+        if buf.len() < datalength + 2 {
+            return Err(BgpError::InsufficientBufferSize);
+        }
+        let data = &buf[2..2+datalength];
+
+        Ok((Self::from_type_and_data(captype, data)?, 2 + datalength))
     }
 }
 
