@@ -21,7 +21,7 @@ pub enum BgpError {
     ProtocolError,
     TooManyData,
     DynStr(std::string::String),
-    Other(Box<dyn std::error::Error>),
+    Other(Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl BgpError {
@@ -37,7 +37,7 @@ impl BgpError {
     }
     /// Wraps any error implements std::error::Error. In Box.
     #[inline]
-    pub fn from_error(e: Box<dyn std::error::Error>) -> BgpError {
+    pub fn from_error(e: Box<dyn std::error::Error + Send + Sync>) -> BgpError {
         BgpError::Other(e)
     }
     /// Just says that buffer size is too small.
