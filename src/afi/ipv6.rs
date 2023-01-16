@@ -138,7 +138,8 @@ impl BgpAddrV6 {
         self.addr.octets()[0] == 255
     }
     pub fn from_bits(bits: u8, buf: &[u8]) -> Result<(BgpAddrV6, usize), BgpError> {
-        if bits > 128 {
+        let bytes = ((bits + 7) / 8) as usize;
+        if bits > 128 || buf.len() < bytes {
             return Err(BgpError::from_string(format!(
                 "Invalid FEC length: {:?}",
                 bits
@@ -154,7 +155,6 @@ impl BgpAddrV6 {
                 0,
             ));
         }
-        let bytes = ((bits + 7) / 8) as usize;
         bf[0..bytes].clone_from_slice(&buf[0..bytes]);
         Ok((
             BgpAddrV6 {

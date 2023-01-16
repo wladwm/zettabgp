@@ -1,3 +1,9 @@
+### 0.3.1 (2022-01-16)
+
+#### Fixes
+
+* fixed panic on invalid ipv6 record length
+
 ### 0.3.0 (2022-10-08)
 
 #### Features
