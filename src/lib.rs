@@ -401,7 +401,7 @@ impl BgpCapability {
     }
 
     /// Decode capability code from given buffer. Returns capability and consumed buffer length.
-    pub fn from_buffer(buf: &[u8]) -> Result<(Option<BgpCapability>, usize), BgpError> {
+    pub fn from_buffer(buf: &[u8]) -> Result<(Result<BgpCapability, (u8, Vec<u8>)>, usize), BgpError> {
         if buf.len() < 2 {
             return Err(BgpError::InsufficientBufferSize);
         }
@@ -412,7 +412,11 @@ impl BgpCapability {
         }
         let data = &buf[2..2+datalength];
 
-        Ok((Self::from_type_and_data(captype, data)?, 2 + datalength))
+        let cap_res = match Self::from_type_and_data(captype, data)? {
+            Some(cap) => Ok(cap),
+            None => Err((captype, data.to_vec())),
+        };
+        Ok((cap_res, 2 + datalength))
     }
 }
 

@@ -63,8 +63,9 @@ impl BgpMessage for BgpOpenMessage {
                 let maybe_cap = BgpCapability::from_buffer(&buf[pos..pos+optlen])?;
                 optlen -= maybe_cap.1;
                 pos += maybe_cap.1;
-                if let Some(cap) = maybe_cap.0 {
-                    self.caps.push(cap);
+                match maybe_cap.0 {
+                    Ok(cap) => self.caps.push(cap),
+                    Err((captype, data)) => eprintln!("warning: unknown capability code {} data {:x?}", captype, data),
                 }
             }
         }
