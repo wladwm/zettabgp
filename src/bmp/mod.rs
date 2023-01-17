@@ -18,7 +18,7 @@ pub mod prelude;
 use crate::prelude::*;
 use bmputl::*;
 use msginit::BmpMessageInitiation;
-use msgpeer::BmpMessagePeerUp;
+use msgpeer::{BmpMessagePeerUp, BmpMessagePeerDown};
 use msgrmon::BmpMessageRouteMonitoring;
 use msgterm::BmpMessageTermination;
 use std::collections::BTreeMap;
@@ -63,7 +63,11 @@ impl BMPSession {
                 Ok(BmpMessage::RouteMonitoring(rm))
             }
             1 => Ok(BmpMessage::StatisticsReport),
-            2 => Ok(BmpMessage::PeerDownNotification),
+            2 => {
+                let peerdown = BmpMessagePeerDown::decode_from(&buf[1..])?.0;
+                self.sessions.remove(&BgpSessionKey::from(&peerdown.peer));
+                Ok(BmpMessage::PeerDownNotification(peerdown))
+            }
             3 => {
                 let peerup = BmpMessagePeerUp::decode_from(&buf[1..])?.0;
                 self.sessions
@@ -118,7 +122,7 @@ impl BMPSession {
 pub enum BmpMessage {
     RouteMonitoring(BmpMessageRouteMonitoring), //0
     StatisticsReport,                           //1
-    PeerDownNotification,                       //2
+    PeerDownNotification(BmpMessagePeerDown),   //2
     PeerUpNotification(BmpMessagePeerUp),       //3
     Initiation(BmpMessageInitiation),           //4
     Termination(BmpMessageTermination),         //5
@@ -160,7 +164,9 @@ impl BmpMessage {
                 BmpMessageRouteMonitoring::decode_from(&buf[1..])?.0,
             )),
             1 => Ok(BmpMessage::StatisticsReport),
-            2 => Ok(BmpMessage::PeerDownNotification),
+            2 => Ok(BmpMessage::PeerDownNotification(
+                BmpMessagePeerDown::decode_from(&buf[1..])?.0,
+            )),
             3 => Ok(BmpMessage::PeerUpNotification(
                 BmpMessagePeerUp::decode_from(&buf[1..])?.0,
             )),
