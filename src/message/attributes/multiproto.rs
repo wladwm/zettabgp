@@ -86,7 +86,7 @@ impl BgpMPUpdates {
                         curpos += r.1;
                     }
                     n => {
-                        eprintln!("AFI/SAFI {}/{} {:?}", afi, safi, &buf[curpos..]);
+                        log::debug!("AFI/SAFI {}/{} {:?}", afi, safi, &buf[curpos..]);
                         return Err(BgpError::from_string(format!(
                             "Unknown safi for ipv4 code {:?}",
                             n

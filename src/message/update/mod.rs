@@ -144,7 +144,7 @@ impl BgpMessage for BgpUpdateMessage {
         curpos = withdraws_end;
         let pathattr_len = getn_u16(&buf[curpos..(curpos + 2)]) as usize;
         curpos += 2;
-        //println!("Path attributes length: {:?}", pathattr_len);
+        log::trace!("Path attributes length: {:?}", pathattr_len);
         let pathattr_end = curpos + pathattr_len;
         if pathattr_end > buf.len() {
             return Err(BgpError::protocol_error());
@@ -164,7 +164,7 @@ impl BgpMessage for BgpUpdateMessage {
             if (curpos + attrlen) > pathattr_end {
                 return Err(BgpError::protocol_error());
             }
-            //println!("PA flags {:?} TC {:?} len {:?}", flags, tc, attrlen);
+            log::trace!("PA flags {:?} TC {:?} len {:?}", flags, tc, attrlen);
             //https://www.iana.org/assignments/bgp-parameters/bgp-parameters.xhtml
             self.attrs.push(BgpAttrItem::decode_from(
                 peer,
@@ -199,7 +199,7 @@ impl BgpMessage for BgpUpdateMessage {
                 }
             }
         };
-        //println!("Update: {:?}", self);
+        log::trace!("Update: {:?}", self);
         Ok(())
     }
     fn encode_to(&self, peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
