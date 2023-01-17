@@ -129,7 +129,8 @@ impl BgpAddrV4 {
         (self.addr.octets() != [255, 255, 255, 255]) && self.addr.octets()[0] >= 224
     }
     pub fn from_bits(bits: u8, buf: &[u8]) -> Result<(BgpAddrV4, usize), BgpError> {
-        if bits > 32 {
+        let bytes = ((bits + 7) / 8) as usize;
+        if bits > 32 || buf.len() < bytes {
             return Err(BgpError::from_string(format!(
                 "Invalid ipv4 FEC length: {:?}",
                 bits
@@ -145,7 +146,6 @@ impl BgpAddrV4 {
                 0,
             ));
         }
-        let bytes = ((bits + 7) / 8) as usize;
         bf[0..bytes].clone_from_slice(&buf[0..bytes]);
         Ok((
             BgpAddrV4 {
