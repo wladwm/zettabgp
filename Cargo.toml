@@ -17,5 +17,6 @@ serialization = ["serde"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+log = "0.4.17"
 serde = { version="1.0", features = ["derive"], optional = true }
 
