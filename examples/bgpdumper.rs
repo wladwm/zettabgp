@@ -138,6 +138,7 @@ impl BgpDumper {
 }
 
 fn main() {
+    env_logger::init();
     if env::args().len() != 3 {
         eprintln!("Usage: bgpdumper PEER AS");
         return;
