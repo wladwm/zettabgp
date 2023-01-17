@@ -1,3 +1,9 @@
+### 0.3.2 (2022-01-17)
+
+#### Features
+* BMP decode route monitoring with parameters from previously caught BGP OPEN messages
+* Support for addpath detection for BMP route monitoring
+
 ### 0.3.1 (2022-01-16)
 
 #### Fixes

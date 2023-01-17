@@ -23,7 +23,6 @@ pub struct BgpOpenMessage {
 
 #[repr(C, packed)]
 struct BgpOpenHead {
-    //    bgpver:u8,
     as_num: u16,
     hold_time: u16,
     routerid: [u8; 4],
@@ -50,7 +49,6 @@ impl BgpMessage for BgpOpenMessage {
         let mut pos: usize = 10;
         while pos < buf.len() {
             if buf[pos] != 2 {
-                eprintln!("BGP capability: {:?}", &buf[pos..]);
                 return Err(BgpError::from_string(format!(
                     "Invalid BGP capability code {:?}!",
                     buf[pos]
@@ -61,7 +59,6 @@ impl BgpMessage for BgpOpenMessage {
             while optlen > 0 {
                 match BgpCapability::from_buffer(&buf[pos..pos + optlen]) {
                     Err(_) => {
-                        //eprintln!("Capability decode: {:?}: {:?}", e, &buf[pos..pos + optlen]);
                         pos += optlen;
                         break;
                     }

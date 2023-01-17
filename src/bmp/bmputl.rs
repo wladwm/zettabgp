@@ -57,7 +57,7 @@ pub struct BmpMessagePeerHeader {
 impl BmpMessagePeerHeader {
     pub fn decode_from(buf: &[u8]) -> Result<(BmpMessagePeerHeader, usize), BgpError> {
         if buf.len() < 42 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize);
         }
         Ok((
             BmpMessagePeerHeader {

@@ -141,7 +141,7 @@ impl BgpAddrV6 {
         let bytes = ((bits + 7) / 8) as usize;
         if bits > 128 || buf.len() < bytes {
             return Err(BgpError::from_string(format!(
-                "Invalid FEC length: {:?}",
+                "Invalid ipv6 FEC length: {:?}",
                 bits
             )));
         }

@@ -182,7 +182,7 @@ impl BgpCapAddPath {
         }
         setn_u16(self.afi, &mut buf[0..2]);
         buf[2] = self.safi;
-        buf[3] = (if self.receive { 1 } else { 0 }) | (if self.send { 2 } else { 0 });
+        buf[3] = u8::from(self.receive) | (u8::from(self.send) << 1);
         Ok(())
     }
     pub fn decode_from(buf: &[u8]) -> Result<BgpCapAddPath, BgpError> {
@@ -424,6 +424,8 @@ pub struct BgpSessionParams {
     pub router_id: std::net::Ipv4Addr,
     /// Capability set for this session.
     pub caps: Vec<BgpCapability>,
+    /// Try to detect pathid
+    pub fuzzy_pathid: bool,
 }
 
 impl BgpSessionParams {
@@ -441,6 +443,7 @@ impl BgpSessionParams {
             has_as32bit: true,
             router_id: routerid,
             caps: cps,
+            fuzzy_pathid: true
         }
     }
     /// Constructs BGP OPEN message from params.
@@ -568,7 +571,7 @@ impl BgpSessionParams {
                                 cvc.retain(|x| *x != *cp)
                             }
                         };
-                    },
+                    }
                 };
                 self.caps.retain(|x| match x {
                     BgpCapability::CapAddPath(vc) => !vc.is_empty(),
@@ -646,6 +649,21 @@ impl BgpSessionParams {
             Ok(_) => Ok(()),
             Err(e) => Err(e.into()),
         }
+    }
+}
+impl From<&BgpOpenMessage> for BgpSessionParams {
+    fn from(bom: &BgpOpenMessage) -> BgpSessionParams {
+        let mut ret = BgpSessionParams {
+            as_num: bom.as_num,
+            hold_time: bom.hold_time,
+            peer_mode: BgpTransportMode::IPv4,
+            has_as32bit: true,
+            router_id: bom.router_id,
+            caps: bom.caps.clone(),
+            fuzzy_pathid: false
+        };
+        ret.check_caps();
+        ret
     }
 }
 #[cfg(test)]

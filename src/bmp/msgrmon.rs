@@ -25,7 +25,7 @@ pub struct BmpMessageRouteMonitoring {
 impl BmpMessageRouteMonitoring {
     pub fn decode_from(buf: &[u8]) -> Result<(BmpMessageRouteMonitoring, usize), BgpError> {
         if buf.len() < 62 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize);
         }
         let pm = BmpMessagePeerHeader::decode_from(buf)?;
         let mut pos = pm.1;

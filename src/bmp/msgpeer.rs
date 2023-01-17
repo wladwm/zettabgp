@@ -12,7 +12,7 @@ use crate::message::open::BgpOpenMessage;
 use crate::util::*;
 use crate::{BgpError, BgpMessage, BgpSessionParams};
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct BmpMessagePeerUp {
     pub peer: BmpMessagePeerHeader,
     pub localaddress: std::net::IpAddr,

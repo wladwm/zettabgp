@@ -114,9 +114,14 @@ impl BgpMessage for BgpUpdateMessage {
         let withdraws_length = getn_u16(&buf[curpos..(curpos + 2)]) as usize;
         curpos += 2;
         let withdraws_end = curpos + withdraws_length;
+        if buf.len() <= withdraws_end {
+            return Err(BgpError::InsufficientBufferSize);
+        }
         match peer.peer_mode {
             BgpTransportMode::IPv4 => {
-                if peer.check_addpath_receive(1, 1) {
+                if peer.check_addpath_receive(1, 1)
+                    || (peer.fuzzy_pathid && is_addpath_nlri(&buf[curpos..withdraws_end]))
+                {
                     let r = decode_pathid_bgpitems_from(&buf[curpos..withdraws_end])?;
                     self.withdraws = BgpAddrs::IPV4UP(r.0);
                 } else {
@@ -125,7 +130,9 @@ impl BgpMessage for BgpUpdateMessage {
                 }
             }
             BgpTransportMode::IPv6 => {
-                if peer.check_addpath_receive(2, 1) {
+                if peer.check_addpath_receive(2, 1)
+                    || (peer.fuzzy_pathid && is_addpath_nlri(&buf[curpos..withdraws_end]))
+                {
                     let r = decode_pathid_bgpitems_from(&buf[curpos..withdraws_end])?;
                     self.withdraws = BgpAddrs::IPV6UP(r.0);
                 } else {
@@ -170,7 +177,9 @@ impl BgpMessage for BgpUpdateMessage {
         }
         match peer.peer_mode {
             BgpTransportMode::IPv4 => {
-                if peer.check_addpath_receive(1, 1) {
+                if peer.check_addpath_receive(1, 1)
+                    || (peer.fuzzy_pathid && is_addpath_nlri(&buf[curpos..]))
+                {
                     let r = decode_pathid_bgpitems_from(&buf[curpos..])?;
                     self.updates = BgpAddrs::IPV4UP(r.0);
                 } else {
@@ -179,7 +188,9 @@ impl BgpMessage for BgpUpdateMessage {
                 }
             }
             BgpTransportMode::IPv6 => {
-                if peer.check_addpath_receive(2, 1) {
+                if peer.check_addpath_receive(2, 1)
+                    || (peer.fuzzy_pathid && is_addpath_nlri(&buf[curpos..]))
+                {
                     let r = decode_pathid_bgpitems_from(&buf[curpos..])?;
                     self.updates = BgpAddrs::IPV6UP(r.0);
                 } else {

@@ -131,7 +131,7 @@ impl BgpAddrV4 {
     pub fn from_bits(bits: u8, buf: &[u8]) -> Result<(BgpAddrV4, usize), BgpError> {
         if bits > 32 {
             return Err(BgpError::from_string(format!(
-                "Invalid FEC length: {:?}",
+                "Invalid ipv4 FEC length: {:?}",
                 bits
             )));
         }
