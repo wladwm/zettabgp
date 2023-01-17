@@ -1,3 +1,12 @@
+### 0.3.3 (2022-01-17)
+
+#### Features
+* log crate using
+* unknown capability ignore
+
+#### Fixes
+* aggregatoras attribute adaptive for BMP
+
 ### 0.3.2 (2022-01-17)
 
 #### Features
@@ -7,7 +16,6 @@
 ### 0.3.1 (2022-01-16)
 
 #### Fixes
-
 * fixed panic on invalid ipv6 record length
 
 ### 0.3.0 (2022-10-08)

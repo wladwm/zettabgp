@@ -197,6 +197,7 @@ impl BgpCapAddPath {
         })
     }
 }
+// capability codes https://www.iana.org/assignments/capability-codes/capability-codes.xhtml
 /// BGP capability for OPEN message.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BgpCapability {

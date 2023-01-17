@@ -23,23 +23,19 @@ pub struct BgpAggregatorAS {
     pub addr: std::net::Ipv4Addr,
 }
 impl BgpAggregatorAS {
-    pub fn decode_from(peer: &BgpSessionParams, buf: &[u8]) -> Result<BgpAggregatorAS, BgpError> {
-        if peer.has_as32bit {
-            if buf.len() == 8 {
-                Ok(BgpAggregatorAS {
-                    asn: getn_u32(buf),
-                    addr: decode_addrv4_from(&buf[4..8])?,
-                })
-            } else {
-                Err(BgpError::static_str("Invalid AggregatorAS 32-bit length"))
-            }
+    pub fn decode_from(_peer: &BgpSessionParams, buf: &[u8]) -> Result<BgpAggregatorAS, BgpError> {
+        if buf.len() == 8 {
+            Ok(BgpAggregatorAS {
+                asn: getn_u32(buf),
+                addr: decode_addrv4_from(&buf[4..8])?,
+            })
         } else if buf.len() == 6 {
             Ok(BgpAggregatorAS {
                 asn: getn_u16(buf) as u32,
                 addr: decode_addrv4_from(&buf[2..6])?,
             })
         } else {
-            Err(BgpError::static_str("Invalid AggregatorAS 16-bit length"))
+            Err(BgpError::static_str("Invalid AggregatorAS length"))
         }
     }
 }
