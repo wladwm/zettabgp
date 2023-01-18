@@ -130,6 +130,119 @@ pub trait BgpAddrItem<T: std::marker::Sized> {
     fn encode_to(&self, mode: BgpTransportMode, buf: &mut [u8]) -> Result<usize, BgpError>;
 }
 
+/// BGP capability GR
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BgpCapGR {
+    pub afi: u16,
+    pub safi: u8,
+    pub forwarding_state: bool,
+}
+
+fn afisafi_from_cap(cap: BgpCapability) -> Result<(u16, u8), BgpError> {
+    let (afi, safi) = match cap {
+        BgpCapability::SafiIPv4u => (1, 1),
+        BgpCapability::SafiIPv4m => (1, 4),
+        BgpCapability::SafiIPv4mvpn => (1, 5),
+        BgpCapability::SafiIPv4mdt => (1, 66),
+        BgpCapability::SafiVPNv4u => (1, 128),
+        BgpCapability::SafiVPNv4m => (1, 129),
+        BgpCapability::SafiIPv4lu => (1, 2),
+        BgpCapability::SafiIPv6u => (2, 1),
+        BgpCapability::SafiIPv6lu => (2, 4),
+        BgpCapability::SafiIPv6mdt => (2, 66),
+        BgpCapability::SafiVPNv6u => (2, 128),
+        BgpCapability::SafiVPNv6m => (2, 129),
+        BgpCapability::SafiVPLS => (25, 65),
+        BgpCapability::SafiEVPN => (25, 70),
+        _ => return Err(BgpError::static_str("Invalid base capability")),
+    };
+    Ok((afi, safi))
+}
+
+impl BgpCapGR {
+    pub fn new_from_cap(
+        base_safi: BgpCapability,
+        forwarding_state: bool,
+    ) -> Result<BgpCapGR, BgpError> {
+        let afisafi: (u16, u8) = afisafi_from_cap(base_safi)?;
+        Ok(BgpCapGR {
+            afi: afisafi.0,
+            safi: afisafi.1,
+            forwarding_state,
+        })
+    }
+    pub fn encode_to(&self, buf: &mut [u8]) -> Result<(), BgpError> {
+        if buf.len() < 4 {
+            return Err(BgpError::insufficient_buffer_size());
+        }
+        setn_u16(self.afi, &mut buf[0..2]);
+        buf[2] = self.safi;
+        buf[3] = 0;
+        if self.forwarding_state { buf[3] |= 128; }
+        Ok(())
+    }
+    pub fn decode_from(buf: &[u8]) -> Result<BgpCapGR, BgpError> {
+        if buf.len() < 4 {
+            return Err(BgpError::insufficient_buffer_size());
+        }
+        Ok(BgpCapGR {
+            afi: getn_u16(&buf[0..2]),
+            safi: buf[2],
+            forwarding_state: buf[3] & 128 != 0,
+        })
+    }
+}
+/// BGP capability LLGR
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BgpCapLLGR {
+    pub afi: u16,
+    pub safi: u8,
+    pub flags: u8,
+    pub stale_time: u32,
+}
+
+impl BgpCapLLGR {
+    pub fn new_from_cap(
+        base_safi: BgpCapability,
+        flags: u8,
+        stale_time: u32,
+    ) -> Result<BgpCapLLGR, BgpError> {
+        let afisafi: (u16, u8) = afisafi_from_cap(base_safi)?;
+        if stale_time.leading_zeros() < 8 {
+            return Err(BgpError::static_str("stale_time must fit into 24 bits"));
+        }
+        Ok(BgpCapLLGR {
+            afi: afisafi.0,
+            safi: afisafi.1,
+            flags,
+            stale_time,
+        })
+    }
+    pub fn encode_to(&self, buf: &mut [u8]) -> Result<(), BgpError> {
+        if buf.len() < 7 {
+            return Err(BgpError::insufficient_buffer_size());
+        }
+        if self.stale_time.leading_zeros() < 8 {
+            return Err(BgpError::static_str("stale_time must fit into 24 bits"));
+        }
+        setn_u16(self.afi, &mut buf[0..2]);
+        buf[2] = self.safi;
+        buf[3] = self.flags;
+        buf[4..7].copy_from_slice(&self.stale_time.to_be_bytes()[1..]);
+        Ok(())
+    }
+    pub fn decode_from(buf: &[u8]) -> Result<BgpCapLLGR, BgpError> {
+        if buf.len() < 7 {
+            return Err(BgpError::insufficient_buffer_size());
+        }
+        Ok(BgpCapLLGR {
+            afi: getn_u16(&buf[0..2]),
+            safi: buf[2],
+            flags: buf[3],
+            stale_time: ((buf[4] as u32) << 16) + getn_u16(&buf[5..7]) as u32
+        })
+    }
+}
 /// BGP capability AddPath.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BgpCapAddPath {
@@ -152,23 +265,7 @@ impl BgpCapAddPath {
         send: bool,
         receive: bool,
     ) -> Result<BgpCapAddPath, BgpError> {
-        let afisafi: (u16, u8) = match base_safi {
-            BgpCapability::SafiIPv4u => (1, 1),
-            BgpCapability::SafiIPv4m => (1, 4),
-            BgpCapability::SafiIPv4mvpn => (1, 5),
-            BgpCapability::SafiIPv4mdt => (1, 66),
-            BgpCapability::SafiVPNv4u => (1, 128),
-            BgpCapability::SafiVPNv4m => (1, 129),
-            BgpCapability::SafiIPv4lu => (1, 2),
-            BgpCapability::SafiIPv6u => (2, 1),
-            BgpCapability::SafiIPv6lu => (2, 4),
-            BgpCapability::SafiIPv6mdt => (2, 66),
-            BgpCapability::SafiVPNv6u => (2, 128),
-            BgpCapability::SafiVPNv6m => (2, 129),
-            BgpCapability::SafiVPLS => (25, 65),
-            BgpCapability::SafiEVPN => (25, 70),
-            _ => return Err(BgpError::static_str("Invalid base capability")),
-        };
+        let afisafi: (u16, u8) = afisafi_from_cap(base_safi)?;
         Ok(BgpCapAddPath {
             afi: afisafi.0,
             safi: afisafi.1,
@@ -235,12 +332,22 @@ pub enum BgpCapability {
     SafiVPLS,
     /// BGP capability EVPN.
     SafiEVPN,
+    /// BGP Capability Graceful Restart
+    CapGR { restart_time: u16, restart_state: bool, afis: Vec<BgpCapGR> },
     /// BGP capability 32-bit AS numbers.
     CapASN32(u32),
     /// BGP capability route-refresh.
     CapRR,
     /// BGP Capability AddPath
     CapAddPath(Vec<BgpCapAddPath>),
+    /// BGP Capability Enhanced Route Refresh Capability (RFC7313)
+    CapEnhancedRR,
+    /// BGP Capability Long-Lived Graceful Restart (draft-uttaro-idr-bgp-persistence)
+    CapLLGR(Vec<BgpCapLLGR>),
+    /// BGP Capability speaker hostname (draft-walton-bgp-hostname-capability)
+    CapFQDN(String, String),
+    /// BGP Capability BFD Strict-Mode (draft-ietf-idr-bgp-bfd-strict-mode)
+    CapBFD,
 }
 
 impl BgpCapability {
@@ -264,13 +371,21 @@ impl BgpCapability {
             BgpCapability::SafiVPNv6m => 6,
             BgpCapability::SafiVPLS => 6,
             BgpCapability::SafiEVPN => 6,
+            BgpCapability::CapGR { afis, .. } => 4 + afis.len() * 4,
             BgpCapability::CapASN32(_) => 6,
             BgpCapability::CapRR => 2,
             BgpCapability::CapAddPath(v) => 2 + v.len() * 4,
+            BgpCapability::CapEnhancedRR => 2,
+            BgpCapability::CapLLGR(v) => 2 + v.len() * 7,
+            BgpCapability::CapFQDN(hostname, domainname) => 4 + hostname.as_bytes().len() + domainname.as_bytes().len(),
+            BgpCapability::CapBFD => 2,
         }
     }
     /// Store capability code into the given buffer.
     fn fill_buffer(&self, buf: &mut [u8]) -> Result<(), BgpError> {
+        if buf.len() < self.bytes_len() {
+            return Err(BgpError::insufficient_buffer_size());
+        }
         match self {
             BgpCapability::SafiIPv4u => {
                 buf.clone_from_slice(&[1, 4, 0, 1, 0, 1]);
@@ -323,6 +438,20 @@ impl BgpCapability {
             BgpCapability::SafiEVPN => {
                 buf.clone_from_slice(&[1, 4, 0, 25, 0, 70]);
             }
+            BgpCapability::CapGR { restart_time, restart_state, afis } => {
+                buf[0] = 64;
+                buf[1] = (2 + 4 * afis.len()) as u8;
+                if restart_time.leading_zeros() < 4 {
+                    return Err(BgpError::static_str("restart_time must fit into 12 bits"));
+                }
+                setn_u16(*restart_time, &mut buf[2..4]);
+                if *restart_state { buf[2] |= 128; }
+                let mut cp: usize = 4;
+                for cap in afis {
+                    cap.encode_to(&mut buf[cp..cp + 4])?;
+                    cp += 4;
+                }
+            }
             BgpCapability::CapASN32(as_num) => {
                 buf.clone_from_slice(&[
                     65,
@@ -337,9 +466,6 @@ impl BgpCapability {
                 buf.clone_from_slice(&[2, 0]);
             }
             BgpCapability::CapAddPath(vap) => {
-                if buf.len() < self.bytes_len() {
-                    return Err(BgpError::insufficient_buffer_size());
-                }
                 buf[0] = 69;
                 buf[1] = (4 * vap.len()) as u8;
                 let mut cp: usize = 2;
@@ -347,6 +473,31 @@ impl BgpCapability {
                     ap.encode_to(&mut buf[cp..cp + 4])?;
                     cp += 4;
                 }
+            }
+            BgpCapability::CapEnhancedRR => {
+                buf.clone_from_slice(&[70, 0]);
+            }
+            BgpCapability::CapLLGR(v) => {
+                buf[0] = 71;
+                buf[1] = (7 * v.len()) as u8;
+                let mut cp: usize = 2;
+                for cap in v {
+                    cap.encode_to(&mut buf[cp..cp + 7])?;
+                    cp += 7;
+                }
+            }
+            BgpCapability::CapFQDN(hostname, domainname) => {
+                buf[0] = 73;
+                buf[1] = hostname.as_bytes().len() as u8;
+                let mut pos = 1;
+                buf[pos..pos+hostname.as_bytes().len()].copy_from_slice(hostname.as_bytes());
+                pos += hostname.as_bytes().len();
+                buf[pos] = domainname.as_bytes().len() as u8;
+                pos += 1;
+                buf[pos..pos+domainname.as_bytes().len()].copy_from_slice(domainname.as_bytes());
+            }
+            BgpCapability::CapBFD => {
+                buf.clone_from_slice(&[74, 0]);
             }
         };
         Ok(())
@@ -382,6 +533,18 @@ impl BgpCapability {
                 if data.len() != 0 { return Err(BgpError::static_str("Invalid capability")); }
                 BgpCapability::CapRR
             }
+            64 => {
+                if data.len() < 2 || (data.len() - 2) % 4 != 0 { return Err(BgpError::static_str("Invalid GR capability")) }
+                let restart_state = data[0] & 128 != 0;
+                let restart_time = getn_u16(&data[0..2]) & 0x0f_ff;
+                let mut afis = Vec::new();
+                let mut cp: usize = 2;
+                while cp < data.len() {
+                    afis.push(BgpCapGR::decode_from(&data[cp..cp+4])?);
+                    cp += 4;
+                }
+                BgpCapability::CapGR { restart_state, restart_time, afis }
+            }
             65 => {
                 if data.len() != 4 { return Err(BgpError::static_str("Invalid capability")); }
                 BgpCapability::CapASN32(getn_u32(data))
@@ -395,6 +558,41 @@ impl BgpCapability {
                     cp += 4;
                 }
                 BgpCapability::CapAddPath(v)
+            }
+            70 => {
+                if data.len() != 0 { return Err(BgpError::static_str("Invalid capability")); }
+                BgpCapability::CapEnhancedRR
+            }
+            71 => {
+                if data.len() % 7 != 0 { return Err(BgpError::static_str("Invalid LLGR capability")) }
+                let mut v = Vec::new();
+                let mut cp: usize = 0;
+                while cp < data.len() {
+                    v.push(BgpCapLLGR::decode_from(&data[cp..cp+7])?);
+                    cp += 7;
+                }
+                BgpCapability::CapLLGR(v)
+            }
+            73 => {
+                let mut pos = 0;
+                if data[pos..].len() < 1 { return Err(BgpError::static_str("Invalid capability")); }
+                let hostname_len = data[pos] as usize;
+                pos += 1;
+                if data[pos..].len() < hostname_len { return Err(BgpError::static_str("Invalid capability")); }
+                let hostname = std::str::from_utf8(&data[pos..pos+hostname_len].to_vec())?.to_string();
+                pos += hostname_len;
+                if data[pos..].len() < 1 { return Err(BgpError::static_str("Invalid capability")); }
+                let domainname_len = data[pos] as usize;
+                pos += 1;
+                if data[pos..].len() < domainname_len { return Err(BgpError::static_str("Invalid capability")); }
+                let domainname = std::str::from_utf8(&data[pos..pos+domainname_len])?.to_string();
+                if data[pos..].len() != 0 { return Err(BgpError::static_str("Invalid capability")) }
+
+                BgpCapability::CapFQDN(hostname, domainname)
+            }
+            74 => {
+                if data.len() != 0 { return Err(BgpError::static_str("Invalid capability")) }
+                BgpCapability::CapBFD
             }
             _ => return Ok(None),
         };

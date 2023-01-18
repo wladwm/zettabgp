@@ -23,13 +23,6 @@ use msgrmon::BmpMessageRouteMonitoring;
 use msgterm::BmpMessageTermination;
 use std::collections::BTreeMap;
 
-impl From<core::str::Utf8Error> for BgpError {
-    #[inline]
-    fn from(error: core::str::Utf8Error) -> Self {
-        BgpError::Other(Box::new(error))
-    }
-}
-
 ///BGP session key
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord)]
 pub struct BgpSessionKey {
