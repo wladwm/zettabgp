@@ -83,3 +83,10 @@ impl From<std::net::AddrParseError> for BgpError {
         BgpError::Other(Box::new(error))
     }
 }
+
+impl From<std::str::Utf8Error> for BgpError {
+    #[inline]
+    fn from(error: std::str::Utf8Error) -> Self {
+        BgpError::Other(Box::new(error))
+    }
+}
