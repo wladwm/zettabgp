@@ -12,7 +12,7 @@ use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 
 /// BGP multiprotocol updates
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg(feature = "serialization")]
 #[derive(Serialize, Deserialize)]
 pub struct BgpMPUpdates {
@@ -192,7 +192,7 @@ impl BgpAttr for BgpMPUpdates {
 }
 
 /// BGP multiprotocol withdraws
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg(feature = "serialization")]
 #[derive(Serialize, Deserialize)]
 pub struct BgpMPWithdraws {

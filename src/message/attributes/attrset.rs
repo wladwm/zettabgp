@@ -13,7 +13,7 @@ use crate::message::attributes::*;
 use serde::{Deserialize, Serialize};
 
 /// BGP attribute set path attribute struct
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg(feature = "serialization")]
 #[derive(Serialize, Deserialize)]
 pub struct BgpAttrSet {
