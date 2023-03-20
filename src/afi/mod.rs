@@ -156,7 +156,7 @@ impl<'de> serde::Deserialize<'de> for BgpNet {
 }
 
 /// Represents variance of NLRI collections
-#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg(feature = "serialization")]
 #[derive(Serialize, Deserialize)]
 pub enum BgpAddrs {

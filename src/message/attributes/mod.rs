@@ -59,7 +59,7 @@ pub trait BgpAttr: std::fmt::Display + std::fmt::Debug {
 }
 
 /// BGP path attribute
-#[derive(Debug, Hash, PartialOrd, Ord, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialOrd, Ord, PartialEq, Eq)]
 #[cfg(feature = "serialization")]
 #[derive(Serialize, Deserialize)]
 pub enum BgpAttrItem {
