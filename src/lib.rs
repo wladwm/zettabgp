@@ -672,7 +672,7 @@ impl BgpSessionParams {
             if let BgpCapability::CapASN32(n) = cap {
                 self.has_as32bit = true;
                 if self.as_num != 0 && self.as_num != 23456 && self.as_num != *n {
-                    log::warn!(
+                    log::trace!(
                         "Capability 32-bit AS mismatch AS number: {:?}!={:?}",
                         self.as_num, *n
                     );
