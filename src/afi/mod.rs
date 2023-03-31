@@ -870,7 +870,7 @@ impl BgpAddrs {
                         match decode_bgpaddritems_from(BgpTransportMode::IPv4, buf) {
                             Ok(r) => Ok((BgpAddrs::MVPN(r.0), r.1)),
                             Err(e) => {
-                                log::debug!("MVPN decode error: {:?}\nbuf:{:?}", e, buf);
+                                log::trace!("MVPN decode error: {:?}\nbuf:{:?}", e, buf);
                                 Err(e)
                             }
                         }

@@ -65,7 +65,7 @@ impl BgpMessage for BgpOpenMessage {
                 pos += maybe_cap.1;
                 match maybe_cap.0 {
                     Ok(cap) => self.caps.push(cap),
-                    Err((captype, data)) => log::info!("ignoring unknown capability code {} data {:x?}", captype, data),
+                    Err((captype, data)) => log::trace!("ignoring unknown capability code {} data {:x?}", captype, data),
                 }
             }
         }

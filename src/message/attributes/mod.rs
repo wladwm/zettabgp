@@ -139,7 +139,7 @@ impl BgpAttrItem {
             }
             128 => Ok(BgpAttrItem::AttrSet(BgpAttrSet::decode_from(peer, buf)?)),
             _ => {
-                log::debug!(
+                log::trace!(
                     "Unknown PA TC={:?} flags={:?} len={:?}: {:?}",
                     typecode,
                     flags,
