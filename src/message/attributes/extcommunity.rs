@@ -154,6 +154,17 @@ impl std::fmt::Display for BgpExtCommunity {
         }
     }
 }
+impl std::convert::From<u64> for BgpExtCommunity {
+    fn from(value: u64) -> Self {
+        let buf = value.to_be_bytes();
+        Self {
+            ctype: buf[0],
+            subtype: buf[1],
+            a: getn_u16(&buf[2..4]),
+            b: getn_u32(&buf[4..8]),
+        }
+    }
+}
 
 /// BGP extended community list path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
