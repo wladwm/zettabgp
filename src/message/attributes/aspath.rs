@@ -8,11 +8,11 @@
 
 //! BGP "ASpath" path attribute
 
-use std::cmp::Ordering;
-use std::hash::{Hash, Hasher};
 use crate::message::attributes::*;
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 
 /// BGP AS - element of aspath
 #[derive(Clone, Copy, Debug)]
@@ -53,7 +53,7 @@ impl PartialEq for BgpAS {
         self.tonumb() == other.tonumb()
     }
 }
-impl Eq for BgpAS{}
+impl Eq for BgpAS {}
 impl PartialOrd for BgpAS {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.value.partial_cmp(&other.value)

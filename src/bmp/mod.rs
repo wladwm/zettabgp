@@ -18,7 +18,7 @@ pub mod prelude;
 use crate::prelude::*;
 use bmputl::*;
 use msginit::BmpMessageInitiation;
-use msgpeer::{BmpMessagePeerUp, BmpMessagePeerDown};
+use msgpeer::{BmpMessagePeerDown, BmpMessagePeerUp};
 use msgrmon::BmpMessageRouteMonitoring;
 use msgterm::BmpMessageTermination;
 use std::collections::BTreeMap;

@@ -60,12 +60,16 @@ impl BgpMessage for BgpOpenMessage {
             let mut optlen = buf[pos + 1] as usize;
             pos += 2;
             while optlen > 0 {
-                let maybe_cap = BgpCapability::from_buffer(&buf[pos..pos+optlen])?;
+                let maybe_cap = BgpCapability::from_buffer(&buf[pos..pos + optlen])?;
                 optlen -= maybe_cap.1;
                 pos += maybe_cap.1;
                 match maybe_cap.0 {
                     Ok(cap) => self.caps.push(cap),
-                    Err((captype, data)) => log::trace!("ignoring unknown capability code {} data {:x?}", captype, data),
+                    Err((captype, data)) => log::trace!(
+                        "ignoring unknown capability code {} data {:x?}",
+                        captype,
+                        data
+                    ),
                 }
             }
         }
