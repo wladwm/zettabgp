@@ -85,7 +85,7 @@ impl BgpItem<BgpMdtV4> for BgpMdtV4 {
             BgpMdtV4 {
                 addr: BgpAddrV4 {
                     addr: decode_addrv4_from(&bf)?,
-                    prefixlen: bits-32,
+                    prefixlen: bits - 32,
                 },
                 group: decode_addrv4_from(&buf[bytes..])?,
             },
@@ -186,7 +186,7 @@ impl BgpItem<BgpMdtV6> for BgpMdtV6 {
             BgpMdtV6 {
                 addr: BgpAddrV6 {
                     addr: decode_addrv6_from(&bf)?,
-                    prefixlen: bits-128,
+                    prefixlen: bits - 128,
                 },
                 group: decode_addrv6_from(&buf[bytes..])?,
             },

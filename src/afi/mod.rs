@@ -837,7 +837,9 @@ impl BgpAddrs {
                 match safi {
                     1 => {
                         //unicast
-                        if peer.check_addpath_receive(afi, safi) || (peer.fuzzy_pathid && is_addpath_nlri(buf)) {
+                        if peer.check_addpath_receive(afi, safi)
+                            || (peer.fuzzy_pathid && is_addpath_nlri(buf))
+                        {
                             let r = decode_pathid_bgpitems_from(buf)?;
                             Ok((BgpAddrs::IPV4UP(r.0), r.1))
                         } else {
@@ -847,7 +849,9 @@ impl BgpAddrs {
                     }
                     2 => {
                         //multicast
-                        if peer.check_addpath_receive(afi, safi) || (peer.fuzzy_pathid && is_addpath_nlri(buf)) {
+                        if peer.check_addpath_receive(afi, safi)
+                            || (peer.fuzzy_pathid && is_addpath_nlri(buf))
+                        {
                             let r = decode_pathid_bgpitems_from(buf)?;
                             Ok((BgpAddrs::IPV4MP(r.0), r.1))
                         } else {
@@ -857,7 +861,9 @@ impl BgpAddrs {
                     }
                     4 => {
                         //labeled unicast
-                        if peer.check_addpath_receive(afi, safi) || (peer.fuzzy_pathid && is_addpath_nlri(buf)) {
+                        if peer.check_addpath_receive(afi, safi)
+                            || (peer.fuzzy_pathid && is_addpath_nlri(buf))
+                        {
                             let r = decode_pathid_bgpitems_from(buf)?;
                             Ok((BgpAddrs::IPV4LUP(r.0), r.1))
                         } else {
@@ -877,7 +883,9 @@ impl BgpAddrs {
                     }
                     66 => {
                         //mdt
-                        if peer.check_addpath_receive(afi, safi) || (peer.fuzzy_pathid && is_addpath_nlri(buf)) {
+                        if peer.check_addpath_receive(afi, safi)
+                            || (peer.fuzzy_pathid && is_addpath_nlri(buf))
+                        {
                             let r = decode_pathid_bgpitems_from(buf)?;
                             Ok((BgpAddrs::IPV4MDTP(r.0), r.1))
                         } else {
@@ -887,7 +895,9 @@ impl BgpAddrs {
                     }
                     128 => {
                         //vpnv4 unicast
-                        if peer.check_addpath_receive(afi, safi) || (peer.fuzzy_pathid && is_addpath_nlri(buf)) {
+                        if peer.check_addpath_receive(afi, safi)
+                            || (peer.fuzzy_pathid && is_addpath_nlri(buf))
+                        {
                             let r = decode_pathid_bgpitems_from(buf)?;
                             Ok((BgpAddrs::VPNV4UP(r.0), r.1))
                         } else {
@@ -897,7 +907,9 @@ impl BgpAddrs {
                     }
                     129 => {
                         //vpnv4 multicast
-                        if peer.check_addpath_receive(afi, safi) || (peer.fuzzy_pathid && is_addpath_nlri(buf)) {
+                        if peer.check_addpath_receive(afi, safi)
+                            || (peer.fuzzy_pathid && is_addpath_nlri(buf))
+                        {
                             let r = decode_pathid_bgpitems_from(buf)?;
                             Ok((BgpAddrs::VPNV4MP(r.0), r.1))
                         } else {
@@ -926,7 +938,9 @@ impl BgpAddrs {
                 match safi {
                     1 => {
                         //unicast
-                        if peer.check_addpath_receive(afi, safi) || (peer.fuzzy_pathid && is_addpath_nlri(buf)) {
+                        if peer.check_addpath_receive(afi, safi)
+                            || (peer.fuzzy_pathid && is_addpath_nlri(buf))
+                        {
                             let r = decode_pathid_bgpitems_from(buf)?;
                             Ok((BgpAddrs::IPV6UP(r.0), r.1))
                         } else {
@@ -936,7 +950,9 @@ impl BgpAddrs {
                     }
                     2 => {
                         //multicast
-                        if peer.check_addpath_receive(afi, safi) || (peer.fuzzy_pathid && is_addpath_nlri(buf)) {
+                        if peer.check_addpath_receive(afi, safi)
+                            || (peer.fuzzy_pathid && is_addpath_nlri(buf))
+                        {
                             let r = decode_pathid_bgpitems_from(buf)?;
                             Ok((BgpAddrs::IPV6MP(r.0), r.1))
                         } else {
@@ -946,7 +962,9 @@ impl BgpAddrs {
                     }
                     4 => {
                         //labeled unicast
-                        if peer.check_addpath_receive(afi, safi) || (peer.fuzzy_pathid && is_addpath_nlri(buf)) {
+                        if peer.check_addpath_receive(afi, safi)
+                            || (peer.fuzzy_pathid && is_addpath_nlri(buf))
+                        {
                             let r = decode_pathid_bgpitems_from(buf)?;
                             Ok((BgpAddrs::IPV6LUP(r.0), r.1))
                         } else {
@@ -956,7 +974,9 @@ impl BgpAddrs {
                     }
                     66 => {
                         //mdt
-                        if peer.check_addpath_receive(afi, safi) || (peer.fuzzy_pathid && is_addpath_nlri(buf)) {
+                        if peer.check_addpath_receive(afi, safi)
+                            || (peer.fuzzy_pathid && is_addpath_nlri(buf))
+                        {
                             let r = decode_pathid_bgpitems_from(buf)?;
                             Ok((BgpAddrs::IPV6MDTP(r.0), r.1))
                         } else {
@@ -966,7 +986,9 @@ impl BgpAddrs {
                     }
                     128 => {
                         //vpnv6 unicast
-                        if peer.check_addpath_receive(afi, safi) || (peer.fuzzy_pathid && is_addpath_nlri(buf)) {
+                        if peer.check_addpath_receive(afi, safi)
+                            || (peer.fuzzy_pathid && is_addpath_nlri(buf))
+                        {
                             let r = decode_pathid_bgpitems_from(buf)?;
                             Ok((BgpAddrs::VPNV6UP(r.0), r.1))
                         } else {
@@ -976,7 +998,9 @@ impl BgpAddrs {
                     }
                     129 => {
                         //vpnv6 multicast
-                        if peer.check_addpath_receive(afi, safi) || (peer.fuzzy_pathid && is_addpath_nlri(buf)) {
+                        if peer.check_addpath_receive(afi, safi)
+                            || (peer.fuzzy_pathid && is_addpath_nlri(buf))
+                        {
                             let r = decode_pathid_bgpitems_from(buf)?;
                             Ok((BgpAddrs::VPNV6MP(r.0), r.1))
                         } else {

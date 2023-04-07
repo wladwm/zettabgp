@@ -89,10 +89,10 @@ pub fn getn_u64(a: &[u8]) -> u64 {
 pub fn getn_u128(a: &[u8]) -> u128 {
     ((getn_u64(a) as u128) << 64) | (getn_u64(&a[8..16]) as u128)
 }
-pub(crate) fn is_addpath_nlri(b:&[u8]) -> bool {
-    if b.len()<5 {
+pub(crate) fn is_addpath_nlri(b: &[u8]) -> bool {
+    if b.len() < 5 {
         false
     } else {
-        b[0]==0 && b[1]==0
+        b[0] == 0 && b[1] == 0
     }
 }

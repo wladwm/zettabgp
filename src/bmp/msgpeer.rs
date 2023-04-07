@@ -7,15 +7,15 @@
 // except according to those terms.
 
 use crate::bmp::bmputl::*;
-use crate::message::*;
-use crate::message::open::BgpOpenMessage;
 use crate::message::notification::BgpNotificationMessage;
+use crate::message::open::BgpOpenMessage;
+use crate::message::*;
 use crate::util::*;
 use crate::{BgpError, BgpMessage, BgpSessionParams};
 
 use std::convert::TryInto;
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct BmpMessagePeerUp {
     pub peer: BmpMessagePeerHeader,
     pub localaddress: std::net::IpAddr,
@@ -27,11 +27,11 @@ pub struct BmpMessagePeerUp {
 
 #[derive(Debug)]
 pub enum BmpMessagePeerDownReason {
-    AdministrativelyClosed(BgpNotificationMessage),    // 1
-    LocalSystemState(u16),                             // 2
-    RemoteNotification(BgpNotificationMessage),        // 3
-    Remote,                                            // 4
-    BmpDisabled,                                       // 5
+    AdministrativelyClosed(BgpNotificationMessage), // 1
+    LocalSystemState(u16),                          // 2
+    RemoteNotification(BgpNotificationMessage),     // 3
+    Remote,                                         // 4
+    BmpDisabled,                                    // 5
 }
 
 #[derive(Debug)]
@@ -95,15 +95,15 @@ impl BmpMessagePeerDown {
                 msg.decode_from(&sesspars, &buf[pos..pos + msgt.1])?;
                 pos += msgt.1;
                 BmpMessagePeerDownReason::AdministrativelyClosed(msg)
-            },
+            }
             2 => {
                 if buf.len() - pos < 2 {
                     return Err(BgpError::InsufficientBufferSize);
                 }
-                let state = u16::from_be_bytes((&buf[pos..pos+2]).try_into().unwrap());
+                let state = u16::from_be_bytes((&buf[pos..pos + 2]).try_into().unwrap());
                 pos += 2;
                 BmpMessagePeerDownReason::LocalSystemState(state)
-            },
+            }
             3 => {
                 let sesspars = BgpSessionParams::from(&pm.0);
                 let msgt = sesspars.decode_message_head(&buf[pos..])?;
@@ -115,14 +115,11 @@ impl BmpMessagePeerDown {
                 msg.decode_from(&sesspars, &buf[pos..pos + msgt.1])?;
                 pos += msgt.1;
                 BmpMessagePeerDownReason::RemoteNotification(msg)
-            },
+            }
             4 => BmpMessagePeerDownReason::Remote,
             5 => BmpMessagePeerDownReason::BmpDisabled,
             _ => return Err(BgpError::static_str("Unknown BMP Peer Down Reason Type")),
         };
-        Ok((BmpMessagePeerDown {
-            peer: pm.0,
-            reason
-        }, pos))
+        Ok((BmpMessagePeerDown { peer: pm.0, reason }, pos))
     }
 }
