@@ -29,13 +29,13 @@ impl BgpDumper {
         }
     }
     fn recv_message_head(&mut self) -> Result<(BgpMessageType, usize), BgpError> {
-        let mut buf = [0 as u8; 19];
+        let mut buf = [0_u8; 19];
         self.stream.read_exact(&mut buf)?;
         self.params.decode_message_head(&buf)
     }
     pub fn start_active(&mut self) -> Result<(), BgpError> {
         let mut bom = self.params.open_message();
-        let mut buf = [255 as u8; 4096];
+        let mut buf = [255_u8; 4096];
         let messagelen = match bom.encode_to(&self.params, &mut buf[19..]) {
             Err(e) => {
                 return Err(e);
@@ -63,8 +63,8 @@ impl BgpDumper {
         Ok(())
     }
     pub fn send_keepalive(stream: &mut TcpStream) -> Result<(), BgpError> {
-        let mut buf = [255 as u8; 19];
-        buf[0..16].clone_from_slice(&[255 as u8; 16]);
+        let mut buf = [255_u8; 19];
+        buf[0..16].clone_from_slice(&[255_u8; 16]);
         buf[16] = 0;
         buf[17] = 19;
         buf[18] = 4; //keepalive
@@ -86,7 +86,7 @@ impl BgpDumper {
     }
     pub fn lifecycle(&mut self) -> Result<(), BgpError> {
         self.start_keepalives()?;
-        let mut buf = Box::new([0 as u8; 65536]);
+        let mut buf = Box::new([0_u8; 65536]);
         loop {
             let msg = match self.recv_message_head() {
                 Ok(m) => m,
@@ -143,7 +143,7 @@ fn main() {
         eprintln!("Usage: bgpdumper PEER AS");
         return;
     }
-    let vargs: Vec<String> = env::args().map(|x| x).collect();
+    let vargs: Vec<String> = env::args().collect();
     let targetip: std::net::IpAddr = match vargs[1].parse() {
         Ok(x) => x,
         Err(_) => {
