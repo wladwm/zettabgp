@@ -524,29 +524,29 @@ impl BgpCapability {
                     return Err(BgpError::static_str("Invalid capability"));
                 }
                 let bytes: &[_; 4] = std::convert::TryFrom::try_from(data).unwrap();
-                match bytes {
-                    &[0, 1, 0, 1] => BgpCapability::SafiIPv4u,
-                    &[0, 1, 0, 133] => BgpCapability::SafiIPv4fu,
-                    &[0, 1, 0, 4] => BgpCapability::SafiIPv4m,
-                    &[0, 1, 0, 5] => BgpCapability::SafiIPv4mvpn,
-                    &[0, 1, 0, 128] => BgpCapability::SafiVPNv4u,
-                    &[0, 1, 0, 134] => BgpCapability::SafiVPNv4fu,
-                    &[0, 1, 0, 129] => BgpCapability::SafiVPNv4m,
-                    &[0, 1, 0, 2] => BgpCapability::SafiIPv4lu,
-                    &[0, 1, 0, 66] => BgpCapability::SafiIPv4mdt,
-                    &[0, 2, 0, 1] => BgpCapability::SafiIPv6u,
-                    &[0, 2, 0, 133] => BgpCapability::SafiIPv6fu,
-                    &[0, 2, 0, 4] => BgpCapability::SafiIPv6lu,
-                    &[0, 2, 0, 66] => BgpCapability::SafiIPv6mdt,
-                    &[0, 2, 0, 128] => BgpCapability::SafiVPNv6u,
-                    &[0, 2, 0, 129] => BgpCapability::SafiVPNv6m,
-                    &[0, 25, 0, 65] => BgpCapability::SafiVPLS,
-                    &[0, 25, 0, 70] => BgpCapability::SafiEVPN,
+                match *bytes {
+                    [0, 1, 0, 1] => BgpCapability::SafiIPv4u,
+                    [0, 1, 0, 133] => BgpCapability::SafiIPv4fu,
+                    [0, 1, 0, 4] => BgpCapability::SafiIPv4m,
+                    [0, 1, 0, 5] => BgpCapability::SafiIPv4mvpn,
+                    [0, 1, 0, 128] => BgpCapability::SafiVPNv4u,
+                    [0, 1, 0, 134] => BgpCapability::SafiVPNv4fu,
+                    [0, 1, 0, 129] => BgpCapability::SafiVPNv4m,
+                    [0, 1, 0, 2] => BgpCapability::SafiIPv4lu,
+                    [0, 1, 0, 66] => BgpCapability::SafiIPv4mdt,
+                    [0, 2, 0, 1] => BgpCapability::SafiIPv6u,
+                    [0, 2, 0, 133] => BgpCapability::SafiIPv6fu,
+                    [0, 2, 0, 4] => BgpCapability::SafiIPv6lu,
+                    [0, 2, 0, 66] => BgpCapability::SafiIPv6mdt,
+                    [0, 2, 0, 128] => BgpCapability::SafiVPNv6u,
+                    [0, 2, 0, 129] => BgpCapability::SafiVPNv6m,
+                    [0, 25, 0, 65] => BgpCapability::SafiVPLS,
+                    [0, 25, 0, 70] => BgpCapability::SafiEVPN,
                     _ => return Ok(None),
                 }
             }
             2 => {
-                if data.len() != 0 {
+                if !data.is_empty() {
                     return Err(BgpError::static_str("Invalid capability"));
                 }
                 BgpCapability::CapRR
@@ -588,7 +588,7 @@ impl BgpCapability {
                 BgpCapability::CapAddPath(v)
             }
             70 => {
-                if data.len() != 0 {
+                if !data.is_empty() {
                     return Err(BgpError::static_str("Invalid capability"));
                 }
                 BgpCapability::CapEnhancedRR
@@ -607,7 +607,7 @@ impl BgpCapability {
             }
             73 => {
                 let mut pos = 0;
-                if data[pos..].len() < 1 {
+                if data[pos..].is_empty() {
                     return Err(BgpError::static_str("Invalid capability"));
                 }
                 let hostname_len = data[pos] as usize;
@@ -615,10 +615,9 @@ impl BgpCapability {
                 if data[pos..].len() < hostname_len {
                     return Err(BgpError::static_str("Invalid capability"));
                 }
-                let hostname =
-                    std::str::from_utf8(&data[pos..pos + hostname_len].to_vec())?.to_string();
+                let hostname = std::str::from_utf8(&data[pos..pos + hostname_len])?.to_string();
                 pos += hostname_len;
-                if data[pos..].len() < 1 {
+                if data[pos..].is_empty() {
                     return Err(BgpError::static_str("Invalid capability"));
                 }
                 let domainname_len = data[pos] as usize;
@@ -627,14 +626,14 @@ impl BgpCapability {
                     return Err(BgpError::static_str("Invalid capability"));
                 }
                 let domainname = std::str::from_utf8(&data[pos..pos + domainname_len])?.to_string();
-                if data[pos..].len() != 0 {
+                if !data[pos..].is_empty() {
                     return Err(BgpError::static_str("Invalid capability"));
                 }
 
                 BgpCapability::CapFQDN(hostname, domainname)
             }
             74 => {
-                if data.len() != 0 {
+                if !data.is_empty() {
                     return Err(BgpError::static_str("Invalid capability"));
                 }
                 BgpCapability::CapBFD
@@ -645,6 +644,7 @@ impl BgpCapability {
     }
 
     /// Decode capability code from given buffer. Returns capability and consumed buffer length.
+    #[allow(clippy::type_complexity)]
     pub fn from_buffer(
         buf: &[u8],
     ) -> Result<(Result<BgpCapability, (u8, Vec<u8>)>, usize), BgpError> {
