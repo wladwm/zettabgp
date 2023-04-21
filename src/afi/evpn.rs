@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! This module describes NLRI data structures for evpn https://tools.ietf.org/html/rfc7432
+//! This module describes NLRI data structures for evpn <https://tools.ietf.org/html/rfc7432>
 
 use crate::afi::*;
 #[cfg(feature = "serialization")]

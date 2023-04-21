@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! BGP Monitoring Protocol (BMP) processing - https://tools.ietf.org/html/rfc7854
+//! BGP Monitoring Protocol (BMP) processing - <https://tools.ietf.org/html/rfc7854>
 
 mod bmputl;
 mod msginit;

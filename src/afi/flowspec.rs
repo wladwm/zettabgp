@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! This module describes NLRI data structures for flowspec https://tools.ietf.org/html/rfc5575
+//! This module describes NLRI data structures for flowspec <https://tools.ietf.org/html/rfc5575>
 use crate::afi::*;
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
