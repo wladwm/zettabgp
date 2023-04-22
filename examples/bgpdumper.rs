@@ -185,13 +185,10 @@ fn main() {
         ),
         stream,
     );
-    match peer.start_active() {
-        Err(e) => {
-            eprintln!("failed to create BGP peer; err = {:?}", e);
-            peer.close();
-            return;
-        }
-        Ok(_) => {}
+    if let Err(e) = peer.start_active() {
+        eprintln!("failed to create BGP peer; err = {:?}", e);
+        peer.close();
+        return;
     };
     println!("Run lifecycle");
     peer.lifecycle().unwrap();
