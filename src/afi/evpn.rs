@@ -416,7 +416,30 @@ impl BgpAddrItem<BgpEVPN> for BgpEVPN {
             ))),
         }
     }
-    fn encode_to(&self, _mode: BgpTransportMode, _buf: &mut [u8]) -> Result<usize, BgpError> {
-        unimplemented!();
+    fn encode_to(&self, mode: BgpTransportMode, buf: &mut [u8]) -> Result<usize, BgpError> {
+        let pos = match self {
+            Self::EVPN1(r) => {
+                buf[0] = 1;
+                r.encode_to(mode, &mut buf[2..])?
+            }
+            Self::EVPN2(r) => {
+                buf[0] = 2;
+                r.encode_to(mode, &mut buf[2..])?
+            }
+            Self::EVPN3(r) => {
+                buf[0] = 3;
+                r.encode_to(mode, &mut buf[2..])?
+            }
+            Self::EVPN4(r) => {
+                buf[0] = 4;
+                r.encode_to(mode, &mut buf[2..])?
+            }
+        };
+        match pos {
+            0..=0xff => buf[1] = pos as u8,
+            _ => return Err(BgpError::TooManyData),
+        }
+
+        Ok(pos + 2)
     }
 }
