@@ -330,8 +330,30 @@ impl BgpAddrItem<BgpEVPN4> for BgpEVPN4 {
             sz,
         ))
     }
-    fn encode_to(&self, _mode: BgpTransportMode, _buf: &mut [u8]) -> Result<usize, BgpError> {
-        unimplemented!();
+    fn encode_to(&self, mode: BgpTransportMode, buf: &mut [u8]) -> Result<usize, BgpError> {
+        let mut pos = self.rd.encode_to(mode, buf)?;
+        if self.esi.v.len() == 10 {
+            buf[pos..pos + 10].copy_from_slice(self.esi.v.as_slice());
+            buf[pos] = self.esi_type;
+            pos += 10;
+        } else {
+            return Err(BgpError::static_str("l2vpn esi len != 10"));
+        }
+        match self.ip {
+            IpAddr::V4(ip) => {
+                buf[pos] = 32;
+                pos += 1;
+                encode_addrv4_to(&ip, &mut buf[pos..])?;
+                pos += 4;
+            }
+            IpAddr::V6(ip) => {
+                buf[pos] = 128;
+                pos += 1;
+                encode_addrv6_to(&ip, &mut buf[pos..])?;
+                pos += 16;
+            }
+        }
+        Ok(pos)
     }
 }
 impl std::fmt::Display for BgpEVPN4 {
