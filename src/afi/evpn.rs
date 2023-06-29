@@ -8,6 +8,8 @@
 
 //! This module describes NLRI data structures for evpn <https://tools.ietf.org/html/rfc7432>
 
+use std::net::IpAddr;
+
 use crate::afi::*;
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
@@ -246,8 +248,25 @@ impl BgpAddrItem<BgpEVPN3> for BgpEVPN3 {
             sz,
         ))
     }
-    fn encode_to(&self, _mode: BgpTransportMode, _buf: &mut [u8]) -> Result<usize, BgpError> {
-        unimplemented!();
+    fn encode_to(&self, mode: BgpTransportMode, buf: &mut [u8]) -> Result<usize, BgpError> {
+        let mut pos = self.rd.encode_to(mode, buf)?;
+        setn_u32(self.ether_tag, &mut buf[pos..pos + 4]);
+        pos += 4;
+        match self.ip {
+            IpAddr::V4(ip) => {
+                buf[pos] = 32;
+                pos += 1;
+                encode_addrv4_to(&ip, &mut buf[pos..])?;
+                pos += 4;
+            }
+            IpAddr::V6(ip) => {
+                buf[pos] = 128;
+                pos += 1;
+                encode_addrv6_to(&ip, &mut buf[pos..])?;
+                pos += 16;
+            }
+        }
+        Ok(pos)
     }
 }
 impl std::fmt::Display for BgpEVPN3 {
