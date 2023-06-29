@@ -156,10 +156,9 @@ impl BgpAddrItem<BgpEVPN2> for BgpEVPN2 {
     }
     fn encode_to(&self, mode: BgpTransportMode, buf: &mut [u8]) -> Result<usize, BgpError> {
         let mut pos = self.rd.encode_to(mode, buf)?;
-        buf[pos] = self.esi_type;
-        pos += 1;
         if self.esi.v.len() == 10 {
             buf[pos..pos + 10].copy_from_slice(self.esi.v.as_slice());
+            buf[pos] = self.esi_type;
             pos += 10;
         } else {
             return Err(BgpError::static_str("l2vpn esi len != 10"));
