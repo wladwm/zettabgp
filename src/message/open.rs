@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use crate::{ntoh16, BgpCapability, BgpError, BgpMessage, BgpSessionParams};
+use crate::{ntoh16, slice, slice_mut, BgpCapability, BgpError, BgpMessage, BgpSessionParams};
 use std::vec::Vec;
 /// BGP open message
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -31,13 +31,13 @@ struct BgpOpenHead {
 
 impl BgpMessage for BgpOpenMessage {
     fn decode_from(&mut self, _peer: &BgpSessionParams, buf: &[u8]) -> Result<(), BgpError> {
-        if buf[0] != 4 {
-            return Err(BgpError::static_str("Invalid BGP version <> 4"));
-        }
         if buf.len() < 10 {
             return Err(BgpError::InsufficientBufferSize);
         }
-        let ptr: *const u8 = buf[1..].as_ptr();
+        if buf[0] != 4 {
+            return Err(BgpError::static_str("Invalid BGP version <> 4"));
+        }
+        let ptr: *const u8 = slice(buf, 1, buf.len())?.as_ptr();
         let ptr: *const BgpOpenHead = ptr as *const BgpOpenHead;
         let ptr: &BgpOpenHead = unsafe { &*ptr };
         self.as_num = ntoh16(ptr.as_num) as u32;
@@ -50,7 +50,7 @@ impl BgpMessage for BgpOpenMessage {
         );
         self.caps.clear();
         let mut pos: usize = 10;
-        while pos < buf.len() {
+        while pos + 1 < buf.len() {
             if buf[pos] != 2 {
                 return Err(BgpError::from_string(format!(
                     "Invalid optional parameter in BGP open message {:?}!",
@@ -60,7 +60,7 @@ impl BgpMessage for BgpOpenMessage {
             let mut optlen = buf[pos + 1] as usize;
             pos += 2;
             while optlen > 0 {
-                let maybe_cap = BgpCapability::from_buffer(&buf[pos..pos + optlen])?;
+                let maybe_cap = BgpCapability::from_buffer(slice(buf, pos, pos + optlen)?)?;
                 optlen -= maybe_cap.1;
                 pos += maybe_cap.1;
                 match maybe_cap.0 {
@@ -76,7 +76,10 @@ impl BgpMessage for BgpOpenMessage {
         Ok(())
     }
     fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
-        let ptr: *mut u8 = buf[1..].as_mut_ptr();
+        if buf.len() < 10 {
+            return Err(BgpError::InsufficientBufferSize);
+        }
+        let ptr: *mut u8 = slice_mut(buf, 1, buf.len())?.as_mut_ptr();
         let ptr: *mut BgpOpenHead = ptr as *mut BgpOpenHead;
         let ptr: &mut BgpOpenHead = unsafe { &mut *ptr };
         buf[0] = 4;
@@ -96,7 +99,7 @@ impl BgpMessage for BgpOpenMessage {
             let caplen = cp.bytes_len();
             buf[pos] = 2; //capability
             buf[pos + 1] = caplen as u8;
-            cp.fill_buffer(&mut buf[(pos + 2)..(caplen + pos + 2)])?;
+            cp.fill_buffer(slice_mut(buf, pos + 2, caplen + pos + 2)?)?;
             pos += 2 + caplen;
         }
         Ok(pos)
@@ -115,5 +118,300 @@ impl BgpOpenMessage {
 impl Default for BgpOpenMessage {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::BgpTransportMode;
+
+    #[test]
+    fn test_good_open() {
+        // Setup
+        let mut buf = vec![0_u8; 4096];
+        let caps = vec![
+            BgpCapability::SafiIPv4u,
+            BgpCapability::CapRR,
+            BgpCapability::CapASN32(65450),
+        ];
+        let params = BgpSessionParams::new(
+            65001,
+            30,
+            BgpTransportMode::IPv4,
+            "10.0.0.1".parse().unwrap(),
+            caps.clone(),
+        );
+        let msg = BgpOpenMessage {
+            as_num: 200,
+            router_id: "10.0.0.1".parse().unwrap(),
+            caps,
+            hold_time: 180,
+        };
+
+        let encode = msg.encode_to(&params, &mut buf);
+        assert!(encode.is_ok());
+
+        let mut decode_msg = BgpOpenMessage::new();
+
+        // Trucate to fit encoded message length
+        buf.truncate(encode.unwrap());
+
+        let decode = decode_msg.decode_from(&params, &buf);
+        match decode {
+            Ok(_) => {
+                assert_eq!(decode_msg.as_num, msg.as_num);
+                assert_eq!(decode_msg.hold_time, msg.hold_time);
+                assert_eq!(decode_msg.router_id, msg.router_id,);
+                assert_eq!(decode_msg.caps.len(), msg.caps.len());
+                for c in decode_msg.caps.iter() {
+                    assert!(msg.caps.contains(c));
+                }
+            }
+            _ => panic!("incorrect decode: {:?}", decode),
+        }
+    }
+
+    #[test]
+    fn test_concatenated_open() {
+        // Setup
+        let mut buf = vec![0_u8; 4096];
+        let caps = vec![
+            BgpCapability::SafiIPv4u,
+            BgpCapability::CapRR,
+            BgpCapability::CapASN32(65450),
+        ];
+        let params = BgpSessionParams::new(
+            65001,
+            30,
+            BgpTransportMode::IPv4,
+            "10.0.0.1".parse().unwrap(),
+            caps.clone(),
+        );
+        let msg = BgpOpenMessage {
+            as_num: 200,
+            router_id: "10.0.0.1".parse().unwrap(),
+            caps,
+            hold_time: 180,
+        };
+
+        let encode = msg.encode_to(&params, &mut buf);
+        assert!(encode.is_ok());
+
+        let encode = msg.encode_to(&params, &mut buf);
+        assert!(encode.is_ok());
+
+        // Trucate to fit encoded message length
+        buf.truncate(encode.unwrap());
+
+        let mut decode_msg = BgpOpenMessage::new();
+        let decode = decode_msg.decode_from(&params, &buf);
+        match decode {
+            Ok(_) => {
+                assert_eq!(decode_msg.as_num, msg.as_num);
+                assert_eq!(decode_msg.hold_time, msg.hold_time);
+                assert_eq!(decode_msg.router_id, msg.router_id);
+                assert_eq!(decode_msg.caps.len(), msg.caps.len());
+                for c in decode_msg.caps.iter() {
+                    assert!(params.caps.contains(c), "caps.contains(): {:?}", c);
+                }
+            }
+            _ => panic!("incorrect decode: {:?}", decode),
+        }
+
+        let mut decode_msg = BgpOpenMessage::new();
+        let decode = decode_msg.decode_from(&params, &buf);
+        match decode {
+            Ok(_) => {
+                assert_eq!(decode_msg.as_num, msg.as_num);
+                assert_eq!(decode_msg.hold_time, msg.hold_time);
+                assert_eq!(decode_msg.router_id, msg.router_id);
+                assert_eq!(decode_msg.caps.len(), msg.caps.len());
+                for c in decode_msg.caps.iter() {
+                    assert!(params.caps.contains(c), "caps.contains(): {:?}", c);
+                }
+            }
+            _ => panic!("incorrect decode: {:?}", decode),
+        }
+    }
+
+    #[test]
+    fn test_bad_open_decode_length() {
+        // Setup
+        let mut buf = vec![0_u8; 4096];
+        let caps = vec![
+            BgpCapability::SafiIPv4u,
+            BgpCapability::CapRR,
+            BgpCapability::CapASN32(65450),
+        ];
+        let params = BgpSessionParams::new(
+            65001,
+            30,
+            BgpTransportMode::IPv4,
+            "10.0.0.1".parse().unwrap(),
+            caps.clone(),
+        );
+        let mut msg = BgpOpenMessage {
+            as_num: 200,
+            router_id: "10.0.0.1".parse().unwrap(),
+            caps,
+            hold_time: 180,
+        };
+
+        let encode = msg.encode_to(&params, &mut buf);
+        assert!(encode.is_ok());
+
+        // Truncate encoded cap data
+        let truncate_amount = 3;
+        buf.truncate(encode.unwrap() - truncate_amount as usize);
+        let decode = msg.decode_from(&params, &buf);
+        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize)));
+    }
+
+    #[test]
+    fn test_bad_open_bgp_version() {
+        // Setup
+        let mut buf = vec![0_u8; 4096];
+        let caps = vec![
+            BgpCapability::SafiIPv4u,
+            BgpCapability::CapRR,
+            BgpCapability::CapASN32(65450),
+        ];
+        let params = BgpSessionParams::new(
+            65001,
+            30,
+            BgpTransportMode::IPv4,
+            "10.0.0.1".parse().unwrap(),
+            caps.clone(),
+        );
+        let msg = BgpOpenMessage {
+            as_num: 200,
+            router_id: "10.0.0.1".parse().unwrap(),
+            caps,
+            hold_time: 180,
+        };
+
+        let encode = msg.encode_to(&params, &mut buf);
+        assert!(encode.is_ok());
+
+        // Set bgp version to be 3
+        buf[0] = 3;
+
+        let mut decode_msg = BgpOpenMessage::new();
+        let decode = decode_msg.decode_from(&params, &buf);
+        assert!(matches!(
+            decode,
+            Err(BgpError::Static("Invalid BGP version <> 4"))
+        ));
+    }
+
+    #[test]
+    fn test_bad_open_decode_empty() {
+        // Setup
+        let buf = vec![0_u8; 0];
+        let caps = vec![
+            BgpCapability::SafiIPv4u,
+            BgpCapability::CapRR,
+            BgpCapability::CapASN32(65450),
+        ];
+        let params = BgpSessionParams::new(
+            65001,
+            30,
+            BgpTransportMode::IPv4,
+            "10.0.0.1".parse().unwrap(),
+            caps,
+        );
+
+        let mut decode_msg = BgpOpenMessage::new();
+        let decode = decode_msg.decode_from(&params, &buf);
+        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize)));
+    }
+
+    #[test]
+    fn test_bad_open_missing_optlen() {
+        // Setup
+        let mut buf = vec![0_u8; 4096];
+        let caps = vec![
+            BgpCapability::SafiIPv4u,
+            BgpCapability::CapRR,
+            BgpCapability::CapASN32(65450),
+        ];
+        let params = BgpSessionParams::new(
+            65001,
+            30,
+            BgpTransportMode::IPv4,
+            "10.0.0.1".parse().unwrap(),
+            caps.clone(),
+        );
+        let msg = BgpOpenMessage {
+            as_num: 200,
+            router_id: "10.0.0.1".parse().unwrap(),
+            caps,
+            hold_time: 180,
+        };
+
+        let encode = msg.encode_to(&params, &mut buf);
+        assert!(encode.is_ok());
+
+        // Truncate to remove optlen
+        buf.truncate(10_usize);
+
+        let mut decode_msg = BgpOpenMessage::new();
+        let decode = decode_msg.decode_from(&params, &buf);
+        assert!(decode.is_ok());
+    }
+
+    #[test]
+    fn test_bad_open_encode_empty() {
+        // Setup
+        let mut buf = vec![0_u8; 0];
+        let caps = vec![
+            BgpCapability::SafiIPv4u,
+            BgpCapability::CapRR,
+            BgpCapability::CapASN32(65450),
+        ];
+        let params = BgpSessionParams::new(
+            65001,
+            30,
+            BgpTransportMode::IPv4,
+            "10.0.0.1".parse().unwrap(),
+            caps.clone(),
+        );
+        let msg = BgpOpenMessage {
+            as_num: 200,
+            router_id: "10.0.0.1".parse().unwrap(),
+            caps,
+            hold_time: 180,
+        };
+
+        let encode = msg.encode_to(&params, &mut buf);
+        assert!(matches!(encode, Err(BgpError::InsufficientBufferSize)));
+    }
+
+    #[test]
+    fn test_bad_open_encode_length() {
+        // Setup
+        let mut buf = vec![0_u8; 20];
+        let caps = vec![
+            BgpCapability::SafiIPv4u,
+            BgpCapability::CapRR,
+            BgpCapability::CapASN32(65450),
+        ];
+        let params = BgpSessionParams::new(
+            65001,
+            30,
+            BgpTransportMode::IPv4,
+            "10.0.0.1".parse().unwrap(),
+            caps.clone(),
+        );
+        let msg = BgpOpenMessage {
+            as_num: 200,
+            router_id: "10.0.0.1".parse().unwrap(),
+            caps,
+            hold_time: 180,
+        };
+
+        let encode = msg.encode_to(&params, &mut buf);
+        assert!(matches!(encode, Err(BgpError::InsufficientBufferSize)));
     }
 }
