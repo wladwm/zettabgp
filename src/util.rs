@@ -96,3 +96,19 @@ pub(crate) fn is_addpath_nlri(b: &[u8]) -> bool {
         b[0] == 0 && b[1] == 0
     }
 }
+/// Returns BgpError::InsufficientBufferSize if slicing is out of bounds
+pub fn slice<T>(buf: &[T], start: usize, end: usize) -> Result<&[T], BgpError> {
+    if start <= end && end <= buf.len() {
+        Ok(&buf[start..end])
+    } else {
+        Err(BgpError::InsufficientBufferSize)
+    }
+}
+/// Returns BgpError::InsufficientBufferSize if slicing is out of bounds
+pub fn slice_mut<T>(buf: &mut [T], start: usize, end: usize) -> Result<&mut [T], BgpError> {
+    if start <= end && end <= buf.len() {
+        Ok(&mut buf[start..end])
+    } else {
+        Err(BgpError::InsufficientBufferSize)
+    }
+}
