@@ -156,7 +156,7 @@ impl BgpAttr for BgpASpath {
         }
         for i in &self.value {
             if peer.has_as32bit {
-                setn_u32(i.value as u32, &mut buf[pos..(pos + 4)]);
+                setn_u32(i.value, &mut buf[pos..(pos + 4)]);
                 pos += 4;
             } else {
                 setn_u16(i.value as u16, &mut buf[pos..(pos + 2)]);
