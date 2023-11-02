@@ -82,7 +82,7 @@ impl BgpASpath {
     pub fn new() -> BgpASpath {
         BgpASpath { value: Vec::new() }
     }
-    pub fn from<T: std::convert::Into<BgpAS>>(sv: Vec<T>) -> BgpASpath {
+    pub fn from<T: std::convert::Into<BgpAS>, I: IntoIterator<Item=T>>(sv: I) -> BgpASpath {
         BgpASpath {
             value: sv.into_iter().map(|q| q.into()).collect(),
         }
