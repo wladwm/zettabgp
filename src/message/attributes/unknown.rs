@@ -65,8 +65,8 @@ impl std::fmt::Display for BgpAttrUnknown {
 impl BgpAttr for BgpAttrUnknown {
     fn attr(&self) -> BgpAttrParams {
         BgpAttrParams {
-            typecode: 1,
-            flags: 64,
+            typecode: self.params.typecode,
+            flags: self.params.flags,
         }
     }
     fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
