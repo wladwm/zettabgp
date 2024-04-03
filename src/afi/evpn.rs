@@ -20,17 +20,20 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct EVPNESI {
-    pub v: Vec<u8>,
+    pub v: [u8; 9],
 }
 impl EVPNESI {
     pub fn empty() -> EVPNESI {
-        EVPNESI { v: Vec::new() }
+        EVPNESI { v: [0; 9] }
     }
-    pub fn new(src: &[u8]) -> EVPNESI {
-        EVPNESI { v: src.to_vec() }
+    pub fn new(src: [u8; 9]) -> EVPNESI {
+        EVPNESI { v: src }
     }
     pub fn is_zero(&self) -> bool {
         !self.v.iter().any(|x| (*x) != 0)
+    }
+    pub fn read(buf: &[u8]) -> (u8, Self) {
+        (buf[0], EVPNESI { v: buf[1..10].try_into().unwrap() })
     }
 }
 impl std::fmt::Display for EVPNESI {
@@ -59,8 +62,7 @@ pub struct BgpEVPN1 {
 impl BgpAddrItem<BgpEVPN1> for BgpEVPN1 {
     fn decode_from(mode: BgpTransportMode, buf: &[u8]) -> Result<(BgpEVPN1, usize), BgpError> {
         let rdp = BgpRD::decode_from(mode, buf)?;
-        let esitype = buf[rdp.1];
-        let esib = &buf[rdp.1 + 1..rdp.1 + 10];
+        let (esi_type, esi) = EVPNESI::read(&buf[rdp.1..]);
         let etag = getn_u32(&buf[rdp.1 + 10..rdp.1 + 14]);
         let lbls = MplsLabels::extract_bits_from(
             (8 * (buf.len() - rdp.1 - 14)) as u8,
@@ -69,8 +71,8 @@ impl BgpAddrItem<BgpEVPN1> for BgpEVPN1 {
         Ok((
             BgpEVPN1 {
                 rd: rdp.0,
-                esi_type: esitype,
-                esi: EVPNESI::new(esib),
+                esi_type,
+                esi,
                 ether_tag: etag,
                 labels: lbls.0,
             },
@@ -79,12 +81,12 @@ impl BgpAddrItem<BgpEVPN1> for BgpEVPN1 {
     }
     fn encode_to(&self, mode: BgpTransportMode, buf: &mut [u8]) -> Result<usize, BgpError> {
         let mut pos = self.rd.encode_to(mode, buf)?;
-        if self.esi.v.len() == 10 {
-            buf[pos..pos + 10].copy_from_slice(self.esi.v.as_slice());
+        if self.esi.v.len() == 9 {
             buf[pos] = self.esi_type;
+            buf[pos + 1..pos + 10].copy_from_slice(self.esi.v.as_slice());
             pos += 10;
         } else {
-            return Err(BgpError::static_str("l2vpn esi len != 10"));
+            return Err(BgpError::static_str("l2vpn esi len != 9"));
         }
         setn_u32(self.ether_tag, &mut buf[pos..pos + 4]);
         pos += 4;
@@ -119,8 +121,7 @@ impl BgpAddrItem<BgpEVPN2> for BgpEVPN2 {
     fn decode_from(mode: BgpTransportMode, buf: &[u8]) -> Result<(BgpEVPN2, usize), BgpError> {
         let rdp = BgpRD::decode_from(mode, buf)?;
         let mut sz = rdp.1;
-        let esitype = buf[sz];
-        let esib = &buf[sz + 1..sz + 10];
+        let (esi_type, esi) = EVPNESI::read(&buf[sz..]);
         sz += 10;
         let etag = getn_u32(&buf[sz..sz + 4]);
         sz += 4;
@@ -157,8 +158,8 @@ impl BgpAddrItem<BgpEVPN2> for BgpEVPN2 {
         Ok((
             BgpEVPN2 {
                 rd: rdp.0,
-                esi_type: esitype,
-                esi: EVPNESI::new(esib),
+                esi_type,
+                esi,
                 ether_tag: etag,
                 mac: mc,
                 ip: tip,
@@ -169,12 +170,12 @@ impl BgpAddrItem<BgpEVPN2> for BgpEVPN2 {
     }
     fn encode_to(&self, mode: BgpTransportMode, buf: &mut [u8]) -> Result<usize, BgpError> {
         let mut pos = self.rd.encode_to(mode, buf)?;
-        if self.esi.v.len() == 10 {
-            buf[pos..pos + 10].copy_from_slice(self.esi.v.as_slice());
+        if self.esi.v.len() == 9 {
             buf[pos] = self.esi_type;
+            buf[pos + 1..pos + 10].copy_from_slice(self.esi.v.as_slice());
             pos += 10;
         } else {
-            return Err(BgpError::static_str("l2vpn esi len != 10"));
+            return Err(BgpError::static_str("l2vpn esi len != 9"));
         }
         setn_u32(self.ether_tag, &mut buf[pos..pos + 4]);
         pos += 4;
@@ -300,8 +301,7 @@ impl BgpAddrItem<BgpEVPN4> for BgpEVPN4 {
     fn decode_from(mode: BgpTransportMode, buf: &[u8]) -> Result<(BgpEVPN4, usize), BgpError> {
         let rdp = BgpRD::decode_from(mode, buf)?;
         let mut sz = rdp.1;
-        let esitype = buf[sz];
-        let esib = &buf[sz + 1..sz + 10];
+        let (esi_type, esi) = EVPNESI::read(&buf[sz..]);
         sz += 11;
         let beg = sz;
         let epaddr = match buf[sz - 1] {
@@ -323,8 +323,8 @@ impl BgpAddrItem<BgpEVPN4> for BgpEVPN4 {
         Ok((
             BgpEVPN4 {
                 rd: rdp.0,
-                esi_type: esitype,
-                esi: EVPNESI::new(esib),
+                esi_type,
+                esi,
                 ip: epaddr,
             },
             sz,
@@ -332,12 +332,12 @@ impl BgpAddrItem<BgpEVPN4> for BgpEVPN4 {
     }
     fn encode_to(&self, mode: BgpTransportMode, buf: &mut [u8]) -> Result<usize, BgpError> {
         let mut pos = self.rd.encode_to(mode, buf)?;
-        if self.esi.v.len() == 10 {
-            buf[pos..pos + 10].copy_from_slice(self.esi.v.as_slice());
+        if self.esi.v.len() == 9 {
             buf[pos] = self.esi_type;
+            buf[pos + 1..pos + 10].copy_from_slice(self.esi.v.as_slice());
             pos += 10;
         } else {
-            return Err(BgpError::static_str("l2vpn esi len != 10"));
+            return Err(BgpError::static_str("l2vpn esi len != 9"));
         }
         match self.ip {
             IpAddr::V4(ip) => {
@@ -379,8 +379,7 @@ pub struct BgpEVPN5 {
 impl BgpAddrItem<BgpEVPN5> for BgpEVPN5 {
     fn decode_from(mode: BgpTransportMode, buf: &[u8]) -> Result<(BgpEVPN5, usize), BgpError> {
         let (rd, mut pos) = BgpRD::decode_from(mode, buf)?;
-        let esi_type = buf[pos];
-        let esib = &buf[pos + 1..pos + 10];
+        let (esi_type, esi) = EVPNESI::read(&buf[pos..]);
         pos += 10;
         let etag = getn_u32(&buf[pos..]);
         pos += 4;
@@ -407,7 +406,7 @@ impl BgpAddrItem<BgpEVPN5> for BgpEVPN5 {
             BgpEVPN5 {
                 rd,
                 esi_type,
-                esi: EVPNESI::new(esib),
+                esi,
                 ether_tag: etag,
                 len,
                 prefix: pfx,
@@ -419,12 +418,12 @@ impl BgpAddrItem<BgpEVPN5> for BgpEVPN5 {
     }
     fn encode_to(&self, mode: BgpTransportMode, buf: &mut [u8]) -> Result<usize, BgpError> {
         let mut pos = self.rd.encode_to(mode, buf)?;
-        if self.esi.v.len() == 10 {
-            buf[pos..pos + 10].copy_from_slice(self.esi.v.as_slice());
+        if self.esi.v.len() == 9 {
             buf[pos] = self.esi_type;
+            buf[pos + 1..pos + 10].copy_from_slice(self.esi.v.as_slice());
             pos += 10;
         } else {
-            return Err(BgpError::static_str("l2vpn esi len != 10"));
+            return Err(BgpError::static_str("l2vpn esi len != 9"));
         }
         setn_u32(self.ether_tag, &mut buf[pos..pos + 4]);
         pos += 4;
