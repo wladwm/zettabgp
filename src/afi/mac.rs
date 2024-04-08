@@ -28,10 +28,15 @@ impl MacAddress {
         }
     }
     /// Construct new mac address from 6 bytes in network order.
-    pub fn from(b: &[u8]) -> MacAddress {
+    pub fn from_network_bytes(b: &[u8]) -> MacAddress {
         MacAddress {
             mac_address: [b[5], b[4], b[3], b[2], b[1], b[0]],
         }
+    }
+    /// Write the mac address to the buffer in network order.
+    pub fn write_to_network_bytes(&self, b: &mut [u8]) {
+        let [b0, b1, b2, b3, b4, b5] = self.mac_address;
+        b.copy_from_slice(&[b5, b4, b3, b2, b1, b0]);
     }
     /// Construct new mac address from u64.
     pub fn from_u64(s: u64) -> MacAddress {

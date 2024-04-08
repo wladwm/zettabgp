@@ -132,7 +132,7 @@ impl BgpAddrItem<BgpEVPN2> for BgpEVPN2 {
             )));
         };
         sz += 1;
-        let mc = MacAddress::from(&buf[sz..sz + 6]);
+        let mc = MacAddress::from_network_bytes(&buf[sz..sz + 6]);
         sz += 6;
         let addrtype = buf[sz];
         sz += 1;
@@ -181,7 +181,7 @@ impl BgpAddrItem<BgpEVPN2> for BgpEVPN2 {
         pos += 4;
         buf[pos] = 48;
         pos += 1; //mac length
-        buf[pos..pos + 6].copy_from_slice(&self.mac.mac_address);
+        self.mac.write_to_network_bytes(&mut buf[pos..pos + 6]);
         pos += 6;
         match self.ip {
             None => {
