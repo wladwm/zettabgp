@@ -56,7 +56,7 @@ impl BgpAttr for BgpOriginatorID {
     fn attr(&self) -> BgpAttrParams {
         BgpAttrParams {
             typecode: 9,
-            flags: 64,
+            flags: 0x80,
         }
     }
     fn encode_to(&self, peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
