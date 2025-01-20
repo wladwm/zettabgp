@@ -36,6 +36,20 @@ impl BmpInfoVal {
             ln + 4,
         ))
     }
+    fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
+        if buf.len() < 4 {
+            return Err(BgpError::insufficient_buffer_size());
+        };
+        let mut curpos = 0;
+        setn_u16(self.infotype, &mut buf[curpos..]);
+        curpos += 2;
+        let info = self.info.as_bytes();
+        setn_u16(info.len() as u16, &mut buf[curpos..]);
+        curpos += 2;
+        buf[curpos..curpos + info.len()].copy_from_slice(info);
+        curpos += info.len();
+        Ok(curpos)
+    }
 }
 
 /// BMP init message
@@ -71,6 +85,31 @@ impl BmpMessageInitiation {
             pos += c.1;
         }
         Ok((ret, pos))
+    }
+    pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
+        let mut curpos: usize = 0;
+        if let Some(str0) = &self.str0 {
+            curpos += (BmpInfoVal {
+                infotype: 0,
+                info: str0.clone(),
+            })
+            .encode_to(&mut buf[curpos..])?;
+        }
+        if let Some(sys_descr) = &self.sys_descr {
+            curpos += (BmpInfoVal {
+                infotype: 0,
+                info: sys_descr.clone(),
+            })
+            .encode_to(&mut buf[curpos..])?;
+        }
+        if let Some(sys_name) = &self.sys_name {
+            curpos += (BmpInfoVal {
+                infotype: 0,
+                info: sys_name.to_string(),
+            })
+            .encode_to(&mut buf[curpos..])?;
+        }
+        Ok(curpos)
     }
 }
 impl Default for BmpMessageInitiation {

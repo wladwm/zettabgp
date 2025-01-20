@@ -72,6 +72,34 @@ impl BmpMessagePeerUp {
         pos += msgt.1;
         Ok((ret, pos))
     }
+    pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
+        if buf.len() < 62 {
+            return Err(BgpError::InsufficientBufferSize);
+        }
+        let mut curpos: usize = 0;
+        curpos += self.peer.encode_to(buf)?;
+
+        encode_bmp_addr_to(&self.localaddress, &mut buf[curpos..])?;
+        curpos += 16;
+        setn_u16(self.localport, &mut buf[curpos..]);
+        curpos += 2;
+        setn_u16(self.remoteport, &mut buf[curpos..]);
+        curpos += 2;
+
+        let sesspars: &BgpSessionParams = &(&self.peer).into();
+
+        let messagelen = self.msg1.encode_to(sesspars, &mut buf[curpos + 19..])?;
+        let blen =
+            sesspars.prepare_message_buf(&mut buf[curpos..], BgpMessageType::Open, messagelen)?;
+        curpos += blen;
+
+        let messagelen = self.msg2.encode_to(sesspars, &mut buf[curpos + 19..])?;
+        let blen =
+            sesspars.prepare_message_buf(&mut buf[curpos..], BgpMessageType::Open, messagelen)?;
+        curpos += blen;
+
+        Ok(curpos)
+    }
 }
 
 impl BmpMessagePeerDown {
@@ -121,5 +149,69 @@ impl BmpMessagePeerDown {
             _ => return Err(BgpError::static_str("Unknown BMP Peer Down Reason Type")),
         };
         Ok((BmpMessagePeerDown { peer: pm.0, reason }, pos))
+    }
+    pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
+        if buf.len() < 43 {
+            return Err(BgpError::InsufficientBufferSize);
+        }
+        let mut curpos: usize = 0;
+        curpos += self.peer.encode_to(buf)?;
+
+        match &self.reason {
+            BmpMessagePeerDownReason::AdministrativelyClosed(msg) => {
+                buf[curpos] = 1;
+                curpos += 1;
+
+                if buf.len() - curpos < 19 {
+                    return Err(BgpError::InsufficientBufferSize);
+                }
+
+                let sesspars: &BgpSessionParams = &(&self.peer).into();
+                let messagelen = msg.encode_to(sesspars, &mut buf[curpos + 19..])?;
+                let blen = sesspars.prepare_message_buf(
+                    &mut buf[curpos..],
+                    BgpMessageType::Notification,
+                    messagelen,
+                )?;
+                curpos += blen;
+            }
+            BmpMessagePeerDownReason::LocalSystemState(state) => {
+                buf[curpos] = 2;
+                curpos += 1;
+
+                if buf.len() - curpos < 2 {
+                    return Err(BgpError::InsufficientBufferSize);
+                }
+                setn_u16(*state, &mut buf[curpos..]);
+                curpos += 2;
+            }
+            BmpMessagePeerDownReason::RemoteNotification(msg) => {
+                buf[curpos] = 3;
+                curpos += 1;
+
+                if buf.len() - curpos < 19 {
+                    return Err(BgpError::InsufficientBufferSize);
+                }
+
+                let sesspars: &BgpSessionParams = &(&self.peer).into();
+                let messagelen = msg.encode_to(sesspars, &mut buf[curpos + 19..])?;
+                let blen = sesspars.prepare_message_buf(
+                    &mut buf[curpos..],
+                    BgpMessageType::Notification,
+                    messagelen,
+                )?;
+                curpos += blen;
+            }
+            BmpMessagePeerDownReason::Remote => {
+                buf[curpos] = 4;
+                curpos += 1;
+            }
+            BmpMessagePeerDownReason::BmpDisabled => {
+                buf[curpos] = 5;
+                curpos += 1;
+            }
+        }
+
+        Ok(curpos)
     }
 }

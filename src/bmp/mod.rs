@@ -147,6 +147,14 @@ impl BmpMessageHeader {
             5,
         ))
     }
+    pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
+        if buf.len() < 5 {
+            return Err(BgpError::insufficient_buffer_size());
+        }
+        buf[0] = self.version;
+        setn_u32(self.msglength as u32, &mut buf[1..]);
+        Ok(5)
+    }
 }
 
 impl BmpMessage {
@@ -172,5 +180,45 @@ impl BmpMessage {
             6 => Ok(BmpMessage::RouteMirroring),
             _ => Err(BgpError::static_str("Invalid BMP message type")),
         }
+    }
+    pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
+        if buf.is_empty() {
+            return Err(BgpError::insufficient_buffer_size());
+        }
+        let mut curpos = 0;
+        match self {
+            BmpMessage::RouteMonitoring(rm) => {
+                buf[0] = 0;
+                curpos += 1;
+                curpos += rm.encode_to(&mut buf[1..])?;
+            }
+            BmpMessage::StatisticsReport => {
+                unimplemented!()
+            }
+            BmpMessage::PeerDownNotification(peerdown) => {
+                buf[0] = 2;
+                curpos += 1;
+                curpos += peerdown.encode_to(&mut buf[1..])?;
+            }
+            BmpMessage::PeerUpNotification(peerup) => {
+                buf[0] = 3;
+                curpos += 1;
+                curpos += peerup.encode_to(&mut buf[1..])?;
+            }
+            BmpMessage::Initiation(init) => {
+                buf[0] = 4;
+                curpos += 1;
+                curpos += init.encode_to(&mut buf[1..])?;
+            }
+            BmpMessage::Termination(term) => {
+                buf[0] = 5;
+                curpos += 1;
+                curpos += term.encode_to(&mut buf[1..])?;
+            }
+            BmpMessage::RouteMirroring => {
+                unimplemented!()
+            }
+        }
+        Ok(curpos)
     }
 }

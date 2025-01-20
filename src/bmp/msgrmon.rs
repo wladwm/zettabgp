@@ -48,4 +48,19 @@ impl BmpMessageRouteMonitoring {
             pos,
         ))
     }
+    pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
+        let mut curpos: usize = 0;
+        if buf.len() < 62 {
+            return Err(BgpError::InsufficientBufferSize);
+        }
+        curpos += self.peer.encode_to(buf)?;
+        let sesspars: &BgpSessionParams = &(&self.peer).into();
+
+        let messagelen = self.update.encode_to(sesspars, &mut buf[curpos + 19..])?;
+        let blen =
+            sesspars.prepare_message_buf(&mut buf[curpos..], BgpMessageType::Update, messagelen)?;
+        curpos += blen;
+
+        Ok(curpos)
+    }
 }
