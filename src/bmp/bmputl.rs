@@ -34,6 +34,23 @@ pub fn decode_bmp_addr_from(buf: &[u8]) -> Result<std::net::IpAddr, BgpError> {
         Ok(std::net::IpAddr::V6(decode_addrv6_from(buf)?))
     }
 }
+pub fn encode_bmp_addr_to(addr: &std::net::IpAddr, buf: &mut [u8]) -> Result<usize, BgpError> {
+    if buf.len() < 16 {
+        return Err(BgpError::insufficient_buffer_size());
+    }
+    match addr {
+        std::net::IpAddr::V4(v4) => {
+            for byte in buf.iter_mut() {
+                *byte = 0;
+            }
+            encode_addrv4_to(v4, &mut buf[12..])?;
+        }
+        std::net::IpAddr::V6(v6) => {
+            encode_addrv6_to(v6, buf)?;
+        }
+    }
+    Ok(16)
+}
 
 /// peer header
 #[derive(Debug, Clone)]
@@ -71,6 +88,20 @@ impl BmpMessagePeerHeader {
             },
             42,
         ))
+    }
+    pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
+        if buf.len() < 42 {
+            return Err(BgpError::InsufficientBufferSize);
+        }
+        buf[0] = self.peertype;
+        buf[1] = self.flags;
+        self.peerdistinguisher
+            .encode_to(BgpTransportMode::IPv4, &mut buf[2..])?;
+        encode_bmp_addr_to(&self.peeraddress, &mut buf[10..])?;
+        setn_u32(self.asnum, &mut buf[26..]);
+        encode_addrv4_to(&self.routerid, &mut buf[30..])?;
+        setn_u64(self.timestamp, &mut buf[34..]);
+        Ok(42)
     }
 }
 impl PartialOrd for BmpMessagePeerHeader {
