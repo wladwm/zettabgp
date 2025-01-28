@@ -125,7 +125,7 @@ impl BgpAttr for BgpLargeCommunityList {
     fn attr(&self) -> BgpAttrParams {
         BgpAttrParams {
             typecode: 32,
-            flags: 224,
+            flags: 128 | 64 | 32 | 16,
         }
     }
     fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
@@ -282,7 +282,7 @@ impl BgpAttr for BgpCommunityList {
     fn attr(&self) -> BgpAttrParams {
         BgpAttrParams {
             typecode: 8,
-            flags: 192,
+            flags: 128 | 64 | 16,
         }
     }
     fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
