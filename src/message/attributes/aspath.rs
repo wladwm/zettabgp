@@ -12,6 +12,7 @@ use crate::message::attributes::*;
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
 use std::hash::{Hash, Hasher};
 
 /// BGP AS - element of aspath
@@ -21,14 +22,6 @@ use std::hash::{Hash, Hasher};
 #[serde(transparent)]
 pub struct BgpAS {
     pub value: u32,
-}
-/// BGP as-path path attribute
-#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct BgpASpath {
-    pub value: Vec<BgpAS>,
 }
 
 impl BgpAS {
@@ -78,11 +71,180 @@ impl std::fmt::Display for BgpAS {
         }
     }
 }
+/// BGP AS_SEQUENCE - element of aspath
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct BgpASseq {
+    pub value: Vec<BgpAS>,
+}
+impl BgpASseq {
+    pub fn len(&self) -> usize {
+        self.value.len()
+    }
+}
+impl From<u32> for BgpASseq {
+    fn from(v: u32) -> Self {
+        BgpASseq {
+            value: vec![BgpAS { value: v }],
+        }
+    }
+}
+/// BGP AS_SET - element of aspath
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct BgpASset {
+    pub value: BTreeSet<BgpAS>,
+}
+impl BgpASset {
+    pub fn len(&self) -> usize {
+        self.value.len()
+    }
+}
+
+/// BGP as path item - common element of aspath
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+pub enum BgpASitem {
+    Seq(BgpASseq),
+    Set(BgpASset),
+}
+impl From<u32> for BgpASitem {
+    fn from(v: u32) -> Self {
+        BgpASitem::Seq(v.into())
+    }
+}
+impl From<BgpASseq> for BgpASitem {
+    fn from(v: BgpASseq) -> Self {
+        BgpASitem::Seq(v)
+    }
+}
+impl From<BgpASset> for BgpASitem {
+    fn from(v: BgpASset) -> Self {
+        BgpASitem::Set(v)
+    }
+}
+impl BgpASitem {
+    pub fn len(&self) -> usize {
+        match self {
+            BgpASitem::Seq(ref s) => s.len(),
+            BgpASitem::Set(ref s) => s.len(),
+        }
+    }
+    pub fn encode_to(&self, peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
+        let lng = self.len() * (if peer.has_as32bit { 4 } else { 2 }) + 2;
+        if buf.len() < lng || self.len() > 255 {
+            return Err(BgpError::InsufficientBufferSize);
+        }
+        let mut pos: usize;
+        match self {
+            BgpASitem::Seq(ref s) => {
+                buf[0] = 1;
+                buf[1] = self.len() as u8;
+                pos = 2;
+                for q in s.value.iter() {
+                    if peer.has_as32bit {
+                        setn_u32(q.value, &mut buf[pos..pos + 4]);
+                        pos += 4;
+                    } else {
+                        setn_u16(q.value as u16, &mut buf[pos..pos + 2]);
+                        pos += 2;
+                    }
+                }
+            }
+            BgpASitem::Set(ref s) => {
+                buf[0] = 2;
+                buf[1] = self.len() as u8;
+                pos = 2;
+                for q in s.value.iter() {
+                    if peer.has_as32bit {
+                        setn_u32(q.value, &mut buf[pos..pos + 4]);
+                        pos += 4;
+                    } else {
+                        setn_u16(q.value as u16, &mut buf[pos..pos + 2]);
+                        pos += 2;
+                    }
+                }
+            }
+        }
+        Ok(lng)
+    }
+    pub fn decode_from(
+        peer: &BgpSessionParams,
+        buf: &[u8],
+    ) -> Result<(BgpASitem, usize), BgpError> {
+        if buf.len() < 2 {
+            return Ok((BgpASitem::Seq(BgpASseq { value: Vec::new() }), 0));
+        }
+        let mut pos = 2usize;
+        let mut cnt = buf[1];
+        match buf[0] {
+            1 => {
+                //as_set
+                let mut v = BTreeSet::<BgpAS>::new();
+                while pos < buf.len() && cnt > 0 {
+                    if peer.has_as32bit {
+                        v.insert(getn_u32(&buf[pos..(pos + 4)]).into());
+                        pos += 4;
+                    } else {
+                        v.insert((getn_u16(&buf[pos..(pos + 2)]) as u32).into());
+                        pos += 2;
+                    }
+                    cnt -= 1;
+                }
+                Ok((BgpASitem::Set(BgpASset { value: v }), pos))
+            }
+            2 => {
+                //as_sequence
+                let mut v = Vec::<BgpAS>::new();
+                while pos < buf.len() && cnt > 0 {
+                    if peer.has_as32bit {
+                        v.push(getn_u32(&buf[pos..(pos + 4)]).into());
+                        pos += 4;
+                    } else {
+                        v.push((getn_u16(&buf[pos..(pos + 2)]) as u32).into());
+                        pos += 2;
+                    }
+                    cnt -= 1;
+                }
+                Ok((BgpASitem::Seq(BgpASseq { value: v }), pos))
+            }
+            _ => Err(BgpError::ProtocolError),
+        }
+    }
+}
+/// BGP as-path path attribute
+#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(feature = "serialization")]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct BgpASpath {
+    pub value: Vec<BgpASitem>,
+}
+
+impl<T, I> From<T> for BgpASpath
+where
+    T: IntoIterator<Item = I>,
+    I: Into<BgpASitem>,
+{
+    fn from(v: T) -> Self {
+        let mut value = Vec::<BgpASitem>::new();
+        for q in v.into_iter() {
+            value.push(q.into());
+        }
+        BgpASpath { value }
+    }
+}
+
 impl BgpASpath {
     pub fn new() -> BgpASpath {
         BgpASpath { value: Vec::new() }
     }
-    pub fn from<T: std::convert::Into<BgpAS>>(sv: Vec<T>) -> BgpASpath {
+    pub fn from<T: std::convert::Into<BgpASitem>>(sv: Vec<T>) -> BgpASpath {
         BgpASpath {
             value: sv.into_iter().map(|q| q.into()).collect(),
         }
@@ -91,21 +253,12 @@ impl BgpASpath {
         if buf.len() < 2 {
             return Ok(BgpASpath { value: Vec::new() });
         }
-        let mut pos: usize;
-        if peer.has_as32bit {
-            pos = buf.len() % 4;
-        } else {
-            pos = buf.len() % 2;
-        }
-        let mut v: Vec<BgpAS> = Vec::new();
+        let mut pos = 0usize;
+        let mut v: Vec<BgpASitem> = Vec::new();
         while pos < buf.len() {
-            if peer.has_as32bit {
-                v.push(getn_u32(&buf[pos..(pos + 4)]).into());
-                pos += 4;
-            } else {
-                v.push((getn_u16(&buf[pos..(pos + 2)]) as u32).into());
-                pos += 2;
-            }
+            let r = BgpASitem::decode_from(peer, &buf[pos..])?;
+            v.push(r.0);
+            pos += r.1;
         }
         Ok(BgpASpath { value: v })
     }
@@ -135,33 +288,12 @@ impl BgpAttr for BgpASpath {
         }
     }
     fn encode_to(&self, peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
-        let mut pos: usize;
+        let mut pos = 0usize;
         if self.value.is_empty() {
             return Ok(0);
         }
-        if peer.has_as32bit {
-            if buf.len() < (2 + self.value.len() * 4) {
-                return Err(BgpError::insufficient_buffer_size());
-            }
-            buf[0] = 2; //as-sequence
-            buf[1] = self.value.len() as u8;
-            pos = 2;
-        } else {
-            if buf.len() < (2 + self.value.len() * 2) {
-                return Err(BgpError::insufficient_buffer_size());
-            }
-            buf[0] = 2; //as-sequence
-            buf[1] = self.value.len() as u8;
-            pos = 2;
-        }
         for i in &self.value {
-            if peer.has_as32bit {
-                setn_u32(i.value, &mut buf[pos..(pos + 4)]);
-                pos += 4;
-            } else {
-                setn_u16(i.value as u16, &mut buf[pos..(pos + 2)]);
-                pos += 2;
-            }
+            pos += i.encode_to(peer, &mut buf[pos..])?;
         }
         Ok(pos)
     }

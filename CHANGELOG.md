@@ -1,3 +1,6 @@
+### 0.3.5 (2025-10-03)
+Fixed AS path - as_set & as_sequence
+
 ### 0.3.3 (2022-01-17)
 
 #### Features
