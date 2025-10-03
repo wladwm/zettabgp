@@ -51,7 +51,7 @@ impl BgpAttr for BgpClusterList {
     fn attr(&self) -> BgpAttrParams {
         BgpAttrParams {
             typecode: 10,
-            flags: 80,
+            flags: 0x80,
         }
     }
     fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {

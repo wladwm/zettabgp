@@ -232,22 +232,13 @@ where
     I: Into<BgpASitem>,
 {
     fn from(v: T) -> Self {
-        let mut value = Vec::<BgpASitem>::new();
-        for q in v.into_iter() {
-            value.push(q.into());
-        }
-        BgpASpath { value }
+        BgpASpath { value: v.into_iter().map(|q| q.into()).collect() }
     }
 }
 
 impl BgpASpath {
     pub fn new() -> BgpASpath {
         BgpASpath { value: Vec::new() }
-    }
-    pub fn from<T: std::convert::Into<BgpASitem>>(sv: Vec<T>) -> BgpASpath {
-        BgpASpath {
-            value: sv.into_iter().map(|q| q.into()).collect(),
-        }
     }
     pub fn decode_from(peer: &BgpSessionParams, buf: &[u8]) -> Result<BgpASpath, BgpError> {
         if buf.len() < 2 {

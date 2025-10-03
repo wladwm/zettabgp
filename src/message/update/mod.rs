@@ -317,9 +317,9 @@ mod tests {
             BgpAttrItem::Origin(BgpOrigin {
                 value: BgpAttrOrigin::Egp,
             }),
-            BgpAttrItem::ASPath(BgpASpath {
-                value: vec![BgpAS::new(65100), BgpAS::new(65101), BgpAS::new(65102)],
-            }),
+            BgpAttrItem::ASPath(
+                vec![65100u32, 65101, 65102].into()
+            ),
             BgpAttrItem::NextHop(BgpNextHop {
                 value: std::net::IpAddr::V4(params.router_id),
             }),
@@ -365,9 +365,7 @@ mod tests {
             BgpAttrItem::Origin(BgpOrigin {
                 value: BgpAttrOrigin::Egp,
             }),
-            BgpAttrItem::ASPath(BgpASpath {
-                value: vec![BgpAS::new(65100), BgpAS::new(65101), BgpAS::new(65102)],
-            }),
+            BgpAttrItem::ASPath(vec![65100u32, 65101, 65102].into()),
             BgpAttrItem::NextHop(BgpNextHop {
                 value: std::net::IpAddr::V4(params.router_id),
             }),
@@ -414,9 +412,7 @@ mod tests {
             BgpAttrItem::Origin(BgpOrigin {
                 value: BgpAttrOrigin::Egp,
             }),
-            BgpAttrItem::ASPath(BgpASpath {
-                value: vec![BgpAS::new(65100), BgpAS::new(65101), BgpAS::new(65102)],
-            }),
+            BgpAttrItem::ASPath(vec![65100u32, 65101, 65102].into()),
             BgpAttrItem::NextHop(BgpNextHop {
                 value: std::net::IpAddr::V4(params.router_id),
             }),

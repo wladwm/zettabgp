@@ -13,6 +13,15 @@ use crate::message::attributes::*;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
+/// no-export well-known community
+pub const NO_EXPORT: BgpCommunity = BgpCommunity{ value:0xffffff01 };
+/// no-advertise well-known community
+pub const NO_ADVERTISE: BgpCommunity = BgpCommunity{ value:0xffffff02 };
+/// no-export-subconfed well-known community
+pub const NO_EXPORT_SUBCONFED: BgpCommunity = BgpCommunity{ value:0xffffff03 };
+/// no-peer well-known community
+pub const NOPEER: BgpCommunity = BgpCommunity{ value:0xffffff04 };
+
 /// BGP community - element for BgpCommunityList path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg(feature = "serialization")]
@@ -116,7 +125,7 @@ impl BgpAttr for BgpLargeCommunityList {
     fn attr(&self) -> BgpAttrParams {
         BgpAttrParams {
             typecode: 32,
-            flags: 224,
+            flags: 128 | 64 | 32 | 16,
         }
     }
     fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
@@ -133,6 +142,14 @@ impl Default for BgpLargeCommunityList {
     }
 }
 impl BgpCommunity {
+    const NO_EXPORT_STR0:&str="no_export";
+    const NO_EXPORT_STR1:&str="noexport";
+    const NO_EXPORT_STR2:&str="no-export";
+    const NO_ADVERTISE_STR0:&str="no_advertise";
+    const NO_ADVERTISE_STR1:&str="no-advertise";
+    const NO_EXPORT_SUBCONFED_STR:&str="no_export_subconfed";
+    const NOPEER_STR0:&str="nopeer";
+    const NOPEER_STR1:&str="no-peer";
     pub fn new(v: u32) -> BgpCommunity {
         BgpCommunity { value: v }
     }
@@ -166,18 +183,31 @@ impl std::fmt::Debug for BgpCommunity {
 }
 impl std::fmt::Display for BgpCommunity {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}:{}",
-            (self.value >> 16) as u16,
-            (self.value & 0xffff) as u16
-        )
+        match self {
+            &NO_EXPORT => f.write_str(Self::NO_EXPORT_STR0),
+            &NO_ADVERTISE => f.write_str(Self::NO_ADVERTISE_STR0),
+            &NO_EXPORT_SUBCONFED => f.write_str(Self::NO_EXPORT_SUBCONFED_STR),
+            &NOPEER => f.write_str(Self::NOPEER_STR0),
+            _ => write!(
+                f,
+                "{}:{}",
+                (self.value >> 16) as u16,
+                (self.value & 0xffff) as u16
+                )
+        }
     }
 }
 impl FromStr for BgpCommunity {
     type Err = std::num::ParseIntError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            Self::NO_EXPORT_STR0 | Self::NO_EXPORT_STR1 | Self::NO_EXPORT_STR2 => return Ok(NO_EXPORT.clone()),
+            Self::NO_ADVERTISE_STR0 | Self::NO_ADVERTISE_STR1 => return Ok(NO_ADVERTISE.clone()),
+            Self::NO_EXPORT_SUBCONFED_STR => return Ok(NO_EXPORT_SUBCONFED.clone()),
+            Self::NOPEER_STR0 | Self::NOPEER_STR1 => return Ok(NOPEER.clone()),
+            _ => {}
+        };
         let parts: Vec<&str> = s.trim().split(':').collect();
         if parts.len() < 2 {
             Ok(BgpCommunity {
@@ -252,7 +282,7 @@ impl BgpAttr for BgpCommunityList {
     fn attr(&self) -> BgpAttrParams {
         BgpAttrParams {
             typecode: 8,
-            flags: 192,
+            flags: 128 | 64 | 16,
         }
     }
     fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
@@ -265,5 +295,28 @@ impl BgpAttr for BgpCommunityList {
             curpos += lng;
         }
         Ok(curpos)
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_community_parse() {
+        assert_eq!(
+            "no_export".parse::<BgpCommunity>(),
+            Ok(NO_EXPORT.clone())
+        );
+        assert_eq!(
+            "23:45".parse::<BgpCommunity>(),
+            Ok(BgpCommunity{ value: 0x0017002d })
+        );
+    }
+    #[test]
+    fn test_community_format() {
+        assert_eq!(
+            format!("{}",BgpCommunity{ value:0xffffff01 }),
+            "no_export".to_string()
+        );
     }
 }

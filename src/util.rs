@@ -86,6 +86,16 @@ pub fn setn_u32(s: u32, a: &mut [u8]) {
 pub fn getn_u64(a: &[u8]) -> u64 {
     ((getn_u32(a) as u64) << 32) | (getn_u32(&a[4..8]) as u64)
 }
+pub fn setn_u64(s: u64, a: &mut [u8]) {
+    a[0] = (s >> 56) as u8;
+    a[1] = ((s >> 48) & 0xff) as u8;
+    a[2] = ((s >> 40) & 0xff) as u8;
+    a[3] = ((s >> 32) & 0xff) as u8;
+    a[4] = ((s >> 24) & 0xff) as u8;
+    a[5] = ((s >> 16) & 0xff) as u8;
+    a[6] = ((s >> 8) & 0xff) as u8;
+    a[7] = (s & 0xff) as u8;
+}
 pub fn getn_u128(a: &[u8]) -> u128 {
     ((getn_u64(a) as u128) << 64) | (getn_u64(&a[8..16]) as u128)
 }
