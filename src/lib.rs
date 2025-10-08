@@ -141,12 +141,12 @@ pub struct BgpCapGR {
 fn afisafi_from_cap(cap: BgpCapability) -> Result<(u16, u8), BgpError> {
     let (afi, safi) = match cap {
         BgpCapability::SafiIPv4u => (1, 1),
-        BgpCapability::SafiIPv4m => (1, 4),
+        BgpCapability::SafiIPv4m => (1, 2),
         BgpCapability::SafiIPv4mvpn => (1, 5),
         BgpCapability::SafiIPv4mdt => (1, 66),
         BgpCapability::SafiVPNv4u => (1, 128),
         BgpCapability::SafiVPNv4m => (1, 129),
-        BgpCapability::SafiIPv4lu => (1, 2),
+        BgpCapability::SafiIPv4lu => (1, 4),
         BgpCapability::SafiIPv6u => (2, 1),
         BgpCapability::SafiIPv6lu => (2, 4),
         BgpCapability::SafiIPv6mdt => (2, 66),

@@ -1,3 +1,6 @@
+### 0.3.7 (2025-10-08)
+Fixed capabilities encoding
+
 ### 0.3.6 (2025-10-08)
 Fix - verify aspath buffer size for incorrect sized ASn
 
