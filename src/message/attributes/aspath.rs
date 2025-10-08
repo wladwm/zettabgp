@@ -186,14 +186,14 @@ impl BgpASitem {
             1 => {
                 //as_set
                 let mut v = BTreeSet::<BgpAS>::new();
-                while pos < buf.len() && cnt > 0 {
+                let itemsize=if peer.has_as32bit {4usize} else {2};
+                while pos <= (buf.len()-itemsize) && cnt > 0 {
                     if peer.has_as32bit {
-                        v.insert(getn_u32(&buf[pos..(pos + 4)]).into());
-                        pos += 4;
+                        v.insert(getn_u32(&buf[pos..(pos + itemsize)]).into());
                     } else {
-                        v.insert((getn_u16(&buf[pos..(pos + 2)]) as u32).into());
-                        pos += 2;
+                        v.insert((getn_u16(&buf[pos..(pos + itemsize)]) as u32).into());
                     }
+                    pos += itemsize;
                     cnt -= 1;
                 }
                 Ok((BgpASitem::Set(BgpASset { value: v }), pos))
@@ -201,14 +201,14 @@ impl BgpASitem {
             2 => {
                 //as_sequence
                 let mut v = Vec::<BgpAS>::new();
-                while pos < buf.len() && cnt > 0 {
+                let itemsize=if peer.has_as32bit {4usize} else {2};
+                while pos <= (buf.len()-itemsize) && cnt > 0 {
                     if peer.has_as32bit {
-                        v.push(getn_u32(&buf[pos..(pos + 4)]).into());
-                        pos += 4;
+                        v.push(getn_u32(&buf[pos..(pos + itemsize)]).into());
                     } else {
-                        v.push((getn_u16(&buf[pos..(pos + 2)]) as u32).into());
-                        pos += 2;
+                        v.push((getn_u16(&buf[pos..(pos + itemsize)]) as u32).into());
                     }
+                    pos += itemsize;
                     cnt -= 1;
                 }
                 Ok((BgpASitem::Seq(BgpASseq { value: v }), pos))

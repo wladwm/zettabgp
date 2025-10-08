@@ -1,3 +1,6 @@
+### 0.3.6 (2025-10-08)
+Fix - verify aspath buffer size for incorrect sized ASn
+
 ### 0.3.5 (2025-10-03)
 Fixed AS path - as_set & as_sequence
 
