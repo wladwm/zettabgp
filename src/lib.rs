@@ -402,7 +402,7 @@ impl BgpCapability {
                 buf.clone_from_slice(&[1, 4, 0, 1, 0, 133]);
             }
             BgpCapability::SafiIPv4m => {
-                buf.clone_from_slice(&[1, 4, 0, 1, 0, 4]);
+                buf.clone_from_slice(&[1, 4, 0, 1, 0, 2]);
             }
             BgpCapability::SafiIPv4mvpn => {
                 buf.clone_from_slice(&[1, 4, 0, 1, 0, 5]);
@@ -417,7 +417,7 @@ impl BgpCapability {
                 buf.clone_from_slice(&[1, 4, 0, 1, 0, 129]);
             }
             BgpCapability::SafiIPv4lu => {
-                buf.clone_from_slice(&[1, 4, 0, 1, 0, 2]);
+                buf.clone_from_slice(&[1, 4, 0, 1, 0, 4]);
             }
             BgpCapability::SafiIPv4mdt => {
                 buf.clone_from_slice(&[1, 4, 0, 1, 0, 66]);
@@ -527,12 +527,12 @@ impl BgpCapability {
                 match *bytes {
                     [0, 1, 0, 1] => BgpCapability::SafiIPv4u,
                     [0, 1, 0, 133] => BgpCapability::SafiIPv4fu,
-                    [0, 1, 0, 4] => BgpCapability::SafiIPv4m,
+                    [0, 1, 0, 2] => BgpCapability::SafiIPv4m,
                     [0, 1, 0, 5] => BgpCapability::SafiIPv4mvpn,
                     [0, 1, 0, 128] => BgpCapability::SafiVPNv4u,
                     [0, 1, 0, 134] => BgpCapability::SafiVPNv4fu,
                     [0, 1, 0, 129] => BgpCapability::SafiVPNv4m,
-                    [0, 1, 0, 2] => BgpCapability::SafiIPv4lu,
+                    [0, 1, 0, 4] => BgpCapability::SafiIPv4lu,
                     [0, 1, 0, 66] => BgpCapability::SafiIPv4mdt,
                     [0, 2, 0, 1] => BgpCapability::SafiIPv6u,
                     [0, 2, 0, 133] => BgpCapability::SafiIPv6fu,
