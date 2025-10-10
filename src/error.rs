@@ -68,7 +68,14 @@ impl std::fmt::Display for BgpError {
         }
     }
 }
-impl std::error::Error for BgpError {}
+impl std::error::Error for BgpError {
+    fn cause(&self) -> Option<&dyn std::error::Error> {
+        match self {
+            BgpError::Other(e) => Some(e.as_ref()),
+            _ => None
+        }
+    }
+}
 
 impl From<std::io::Error> for BgpError {
     #[inline]
