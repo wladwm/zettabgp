@@ -1,3 +1,6 @@
+### 0.3.8 (2025-10-10)
+BgpError cause implemented for nested errors
+
 ### 0.3.7 (2025-10-08)
 Fixed capabilities encoding
 
