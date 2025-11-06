@@ -308,11 +308,31 @@ pub struct BgpRD {
 }
 impl BgpRD {
     /// Creates a new RD from a pair of numbers
-    pub fn new(h: u32, l: u32) -> BgpRD {
+    pub const fn new(h: u32, l: u32) -> BgpRD {
         BgpRD { rdh: h, rdl: l }
     }
+    pub const fn from_asn_aan(asn: u32, aan: u32) -> Result<BgpRD, BgpError> {
+        if (asn & 0xffff0000) == 0 {
+            Ok(BgpRD { rdh: asn, rdl: aan })
+        } else {
+            if (aan & 0xffff0000) != 0 {
+                return Err(BgpError::ProtocolError);
+            }
+            Ok(BgpRD {
+                rdh: 0x20000 | (asn >> 16),
+                rdl: (aan & 0xffff) | ((asn & 0xffff) << 16),
+            })
+        }
+    }
+    pub const fn from_ipv4_aan(ipv4: std::net::Ipv4Addr, aan: u16) -> BgpRD {
+        let oc = ipv4.octets();
+        BgpRD {
+            rdh: 0x10000 | ((oc[0] as u32) << 8) | oc[1] as u32,
+            rdl: (aan as u32) | ((oc[2] as u32) << 24) | ((oc[3] as u32) << 16),
+        }
+    }
     /// Checks that RD is zero
-    pub fn is_zero(&self) -> bool {
+    pub const fn is_zero(&self) -> bool {
         (self.rdh == 0) && (self.rdl == 0)
     }
     /// decodes RD from bytes
@@ -335,22 +355,67 @@ impl BgpRD {
         setn_u32(self.rdl, &mut buf[4..8]);
         Ok(8)
     }
+    /// returns RD type
+    pub const fn rdtype(&self) -> u16 {
+        (self.rdh >> 16) as u16
+    }
+    /// returns AS number if presents
+    pub fn asn(&self) -> Option<u32> {
+        match self.rdh >> 16 {
+            2 => Some((self.rdh & 0xffff) << 16 | (self.rdl >> 16)),
+            0 => Some(self.rdh & 0xffff),
+            _ => None,
+        }
+    }
+    /// returns IPv4 address if presents
+    pub fn ipv4addr(&self) -> Option<std::net::Ipv4Addr> {
+        if (self.rdh >> 16) == 1 {
+            Some(std::net::Ipv4Addr::new(
+                ((self.rdh >> 8) & 0xff) as u8,
+                (self.rdh & 0xff) as u8,
+                ((self.rdl >> 24) & 0xff) as u8,
+                ((self.rdl >> 16) & 0xff) as u8,
+            ))
+        } else {
+            None
+        }
+    }
+    /// returns administrator-assigned number
+    pub fn aan(&self) -> Option<u32> {
+        match self.rdh >> 16 {
+            2 => Some(self.rdl & 0xffff),
+            1 => Some(self.rdl & 0xffff),
+            0 => Some(self.rdl),
+            _ => None,
+        }
+    }
 }
 impl std::str::FromStr for BgpRD {
-    type Err = std::num::ParseIntError;
+    type Err = BgpError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split(':').collect();
         if parts.len() < 2 {
+            let n = parts[0]
+                .parse::<u64>()
+                .map_err(|_| BgpError::Static("Invalid RD"))?;
             Ok(BgpRD {
-                rdh: parts[0].parse::<u32>()?,
-                rdl: 0,
+                rdh: (n >> 32) as u32,
+                rdl: (n & 0xffffffff) as u32,
             })
         } else {
-            Ok(BgpRD {
-                rdh: parts[0].parse::<u32>()?,
-                rdl: parts[1].parse::<u32>()?,
-            })
+            if let (Some(ipaddr), Some(aan)) = (
+                parts[0].parse::<std::net::Ipv4Addr>().ok(),
+                parts[1].parse::<u16>().ok(),
+            ) {
+                Ok(BgpRD::from_ipv4_aan(ipaddr, aan))
+            } else if let (Some(asn), Some(aan)) =
+                (parts[0].parse::<u32>().ok(), parts[1].parse::<u32>().ok())
+            {
+                BgpRD::from_asn_aan(asn, aan)
+            } else {
+                Err(BgpError::Static("Invalid RD"))
+            }
         }
     }
 }
@@ -364,7 +429,16 @@ impl BgpAddrItem<BgpRD> for BgpRD {
 }
 impl std::fmt::Display for BgpRD {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if (self.rdh >> 16) == 1 {
+        if (self.rdh >> 16) == 2 {
+            // 32-bit ASN & 16-bit AAN
+            write!(
+                f,
+                "{}:{}",
+                (self.rdh & 0xffff) << 16 | (self.rdl >> 16),
+                self.rdl & 0xffff
+            )
+        } else if (self.rdh >> 16) == 1 {
+            // 32-bit IP & 16-bit AAN
             write!(
                 f,
                 "{}.{}.{}.{}:{}",
@@ -375,6 +449,7 @@ impl std::fmt::Display for BgpRD {
                 self.rdl & 0xffff
             )
         } else {
+            // 16-bit ASN & 32-bit AAN
             write!(f, "{}:{}", self.rdh, self.rdl)
         }
     }
@@ -1396,6 +1471,8 @@ mod ser {
 
 #[cfg(test)]
 mod tests {
+    use std::net::Ipv4Addr;
+
     use super::*;
 
     #[test]
@@ -1507,5 +1584,57 @@ mod tests {
                     32
                 ))
         );
+    }
+    #[test]
+    fn test_rd_type0() {
+        let rdt = BgpRD::from_asn_aan(1, 2).unwrap();
+        assert_eq!(rdt, BgpRD { rdh: 1, rdl: 2 });
+        assert_eq!(rdt.rdtype(), 0);
+    }
+    #[test]
+    fn test_rd_type1() {
+        let rdt = BgpRD::from_ipv4_aan(Ipv4Addr::new(1, 2, 3, 4), 5);
+        assert_eq!(
+            rdt,
+            BgpRD {
+                rdh: 0x00010102,
+                rdl: 0x03040005
+            }
+        );
+        assert_eq!(rdt.rdtype(), 1);
+    }
+    #[test]
+    fn test_rd_type2() {
+        let rdt = BgpRD::from_asn_aan(4200000000, 1).unwrap();
+        assert_eq!(
+            rdt,
+            BgpRD {
+                rdh: 0x0002fa56,
+                rdl: 0xea000001
+            }
+        );
+        assert_eq!(rdt.rdtype(), 2);
+    }
+    #[test]
+    fn test_rd_parse() {
+        assert_eq!("1:2".parse::<BgpRD>().unwrap(), BgpRD { rdh: 1, rdl: 2 });
+        assert_eq!(
+            "1.2.3.4:5".parse::<BgpRD>().unwrap(),
+            BgpRD {
+                rdh: 0x00010102,
+                rdl: 0x03040005
+            }
+        );
+        assert_eq!(
+            "4200000000:1".parse::<BgpRD>().unwrap(),
+            BgpRD {
+                rdh: 0x0002fa56,
+                rdl: 0xea000001
+            }
+        );
+    }
+    #[test]
+    fn test_rd_error() {
+        assert!(BgpRD::from_asn_aan(4200000000, 4200000000).err().is_some());
     }
 }

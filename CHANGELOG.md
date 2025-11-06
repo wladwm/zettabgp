@@ -1,3 +1,6 @@
+### 0.3.9 (2025-11-06)
+RD parsing, printing, creating was improved.
+
 ### 0.3.8 (2025-10-10)
 BgpError cause implemented for nested errors
 
