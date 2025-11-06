@@ -186,8 +186,8 @@ impl BgpASitem {
             1 => {
                 //as_set
                 let mut v = BTreeSet::<BgpAS>::new();
-                let itemsize=if peer.has_as32bit {4usize} else {2};
-                while pos <= (buf.len()-itemsize) && cnt > 0 {
+                let itemsize = if peer.has_as32bit { 4usize } else { 2 };
+                while pos <= (buf.len() - itemsize) && cnt > 0 {
                     if peer.has_as32bit {
                         v.insert(getn_u32(&buf[pos..(pos + itemsize)]).into());
                     } else {
@@ -201,8 +201,8 @@ impl BgpASitem {
             2 => {
                 //as_sequence
                 let mut v = Vec::<BgpAS>::new();
-                let itemsize=if peer.has_as32bit {4usize} else {2};
-                while pos <= (buf.len()-itemsize) && cnt > 0 {
+                let itemsize = if peer.has_as32bit { 4usize } else { 2 };
+                while pos <= (buf.len() - itemsize) && cnt > 0 {
                     if peer.has_as32bit {
                         v.push(getn_u32(&buf[pos..(pos + itemsize)]).into());
                     } else {
@@ -232,7 +232,9 @@ where
     I: Into<BgpASitem>,
 {
     fn from(v: T) -> Self {
-        BgpASpath { value: v.into_iter().map(|q| q.into()).collect() }
+        BgpASpath {
+            value: v.into_iter().map(|q| q.into()).collect(),
+        }
     }
 }
 

@@ -317,9 +317,7 @@ mod tests {
             BgpAttrItem::Origin(BgpOrigin {
                 value: BgpAttrOrigin::Egp,
             }),
-            BgpAttrItem::ASPath(
-                vec![65100u32, 65101, 65102].into()
-            ),
+            BgpAttrItem::ASPath(vec![65100u32, 65101, 65102].into()),
             BgpAttrItem::NextHop(BgpNextHop {
                 value: std::net::IpAddr::V4(params.router_id),
             }),

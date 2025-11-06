@@ -33,7 +33,12 @@ impl EVPNESI {
         !self.v.iter().any(|x| (*x) != 0)
     }
     pub fn read(buf: &[u8]) -> (u8, Self) {
-        (buf[0], EVPNESI { v: buf[1..10].try_into().unwrap() })
+        (
+            buf[0],
+            EVPNESI {
+                v: buf[1..10].try_into().unwrap(),
+            },
+        )
     }
 }
 impl std::fmt::Display for EVPNESI {
