@@ -115,7 +115,7 @@ impl BgpMessage for BgpUpdateMessage {
         curpos += 2;
         let withdraws_end = curpos + withdraws_length;
         if buf.len() <= withdraws_end {
-            return Err(BgpError::InsufficientBufferSize);
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         match peer.peer_mode {
             BgpTransportMode::IPv4 => {
@@ -147,7 +147,7 @@ impl BgpMessage for BgpUpdateMessage {
         log::trace!("Path attributes length: {:?}", pathattr_len);
         let pathattr_end = curpos + pathattr_len;
         if pathattr_end > buf.len() {
-            return Err(BgpError::protocol_error());
+            return Err(BgpError::ProtocolError(file!(), line!()));
         }
         while curpos < pathattr_end {
             //flags 0
@@ -162,7 +162,7 @@ impl BgpMessage for BgpUpdateMessage {
                 buf[curpos - 1] as usize
             };
             if (curpos + attrlen) > pathattr_end {
-                return Err(BgpError::protocol_error());
+                return Err(BgpError::ProtocolError(file!(), line!()));
             }
             log::trace!("PA flags {:?} TC {:?} len {:?}", flags, tc, attrlen);
             //https://www.iana.org/assignments/bgp-parameters/bgp-parameters.xhtml
@@ -210,7 +210,7 @@ impl BgpMessage for BgpUpdateMessage {
                 BgpAddrs::IPV4U(ref wdrw) => {
                     let wlen = encode_bgpitems_to(wdrw, slice_mut(buf, curpos + 2, buf.len())?)?;
                     if wlen > 65535 {
-                        return Err(BgpError::too_many_data());
+                        return Err(BgpError::TooManyData(file!(), line!()));
                     }
                     setn_u16(wlen as u16, slice_mut(buf, curpos, buf.len())?);
                     curpos += 2 + wlen;
@@ -219,7 +219,7 @@ impl BgpMessage for BgpUpdateMessage {
                     let wlen =
                         encode_pathid_bgpitems_to(wdrw, slice_mut(buf, curpos + 2, buf.len())?)?;
                     if wlen > 65535 {
-                        return Err(BgpError::too_many_data());
+                        return Err(BgpError::TooManyData(file!(), line!()));
                     }
                     setn_u16(wlen as u16, slice_mut(buf, curpos, buf.len())?);
                     curpos += 2 + wlen;
@@ -233,7 +233,7 @@ impl BgpMessage for BgpUpdateMessage {
                 BgpAddrs::IPV6U(ref wdrw) => {
                     let wlen = encode_bgpitems_to(wdrw, slice_mut(buf, curpos + 2, buf.len())?)?;
                     if wlen > 65535 {
-                        return Err(BgpError::too_many_data());
+                        return Err(BgpError::TooManyData(file!(), line!()));
                     }
                     setn_u16(wlen as u16, slice_mut(buf, curpos, buf.len())?);
                     curpos += 2 + wlen;
@@ -242,7 +242,7 @@ impl BgpMessage for BgpUpdateMessage {
                     let wlen =
                         encode_pathid_bgpitems_to(wdrw, slice_mut(buf, curpos + 2, buf.len())?)?;
                     if wlen > 65535 {
-                        return Err(BgpError::too_many_data());
+                        return Err(BgpError::TooManyData(file!(), line!()));
                     }
                     setn_u16(wlen as u16, slice_mut(buf, curpos, buf.len())?);
                     curpos += 2 + wlen;
@@ -383,7 +383,7 @@ mod tests {
         let truncate_amount = 3;
         buf.truncate(truncate_amount as usize);
         let decode = msg.decode_from(&params, &buf);
-        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize)));
+        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize(file!(), line!()))));
     }
 
     #[test]
@@ -424,6 +424,6 @@ mod tests {
         }
         msg.updates = BgpAddrs::IPV4U(updates.clone());
         let decode = msg.decode_from(&params, &buf);
-        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize)));
+        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize(file!(), line!()))));
     }
 }

@@ -49,7 +49,7 @@ impl std::fmt::Debug for BgpAggregatorAS {
 }
 impl std::fmt::Display for BgpAggregatorAS {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "BgpAggregatorAS {:?} {:?}", self.asn, self.addr)
+        write!(f, "{}/{}", self.asn, self.addr)
     }
 }
 impl BgpAttr for BgpAggregatorAS {

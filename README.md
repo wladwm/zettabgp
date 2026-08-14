@@ -51,6 +51,7 @@ BMP - BGP Monitoring Protocol version 3.
  * Attribute set
  * Connector
  * some PMSI tunnels
+ * Only to customer
 
 ## Usage
 

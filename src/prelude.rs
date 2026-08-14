@@ -16,12 +16,7 @@
 //! use zettabgp::prelude::*;
 //! ```
 
-pub use crate::afi::evpn::*;
 pub use crate::afi::flowspec::*;
-pub use crate::afi::ipv4::*;
-pub use crate::afi::ipv6::*;
-pub use crate::afi::mvpn::*;
-pub use crate::afi::vpls::*;
 pub use crate::afi::*;
 pub use crate::error::*;
 pub use crate::util::*;
@@ -29,8 +24,6 @@ pub use crate::*;
 
 pub use crate::message::keepalive::*;
 pub use crate::message::notification::*;
-pub use crate::message::open::*;
-pub use crate::message::update::*;
 pub use crate::message::*;
 pub use crate::BgpMessage;
 

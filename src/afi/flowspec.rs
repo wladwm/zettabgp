@@ -7,6 +7,8 @@
 // except according to those terms.
 
 //! This module describes NLRI data structures for flowspec <https://tools.ietf.org/html/rfc5575>
+use std::fmt::Write;
+
 use crate::afi::*;
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
@@ -147,7 +149,7 @@ impl std::fmt::Display for FSOperValItem {
             f,
             "{} {}",
             String::new()
-                + (if self.and_bit { "&&" } else { "||" })
+                + (if self.and_bit { "&&" } else { " " })
                 + (if self.lt_cmp { "<" } else { "" })
                 + (if self.eq_cmp { "=" } else { "" })
                 + (if self.gt_cmp { ">" } else { "" }),
@@ -243,6 +245,9 @@ impl<T: FSOperItem> FSOperVec<T> {
     pub fn push(&mut self, i: T) {
         self.items.push(i)
     }
+    pub fn iter<'s>(&'s self) -> std::slice::Iter<'s,T> {
+        self.items.iter()
+    }
     fn getbyteslen(&self) -> usize {
         let mut a: usize = 0;
         for c in &self.items {
@@ -269,9 +274,20 @@ impl<T: FSOperItem> FSOperVec<T> {
         while pos < buf.len() {
             let i = T::decode_from(&buf[pos..])?;
             v.push(i.0);
+            let q = buf[pos];
             pos += i.1;
+            if q & 128 > 0 {
+                break;
+            }
         }
         Ok((Self { items: v }, pos))
+    }
+}
+impl<T: FSOperItem + std::fmt::Display> std::fmt::Display for FSOperVec<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_char('(')?;
+        util::fmt_vec(self.items.iter(), ' ', f)?;
+        f.write_char(')')
     }
 }
 #[cfg(feature = "serialization")]
@@ -400,10 +416,10 @@ impl FSOperItem for FSOperMaskItem {
         ))
     }
 }
-type FSCmpValOpers = FSOperVec<FSOperValItem>;
-type FSCmpMaskOpers = FSOperVec<FSOperMaskItem>;
+pub type FSCmpValOpers = FSOperVec<FSOperValItem>;
+pub type FSCmpMaskOpers = FSOperVec<FSOperMaskItem>;
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum BgpFlowSpec<T: FSItem<T>> {
+pub enum BgpFlowSpecItem<T: FSItem<T>> {
     PrefixDst(T),
     PrefixSrc(T),
     Proto(FSCmpValOpers),
@@ -418,163 +434,175 @@ pub enum BgpFlowSpec<T: FSItem<T>> {
     Fragment(FSCmpMaskOpers),
     FlowLabel(FSCmpValOpers),
 }
-impl<T: FSItem<T> + std::fmt::Debug> std::fmt::Display for BgpFlowSpec<T> {
+impl<T: FSItem<T> + std::fmt::Display> std::fmt::Display for BgpFlowSpecItem<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        use BgpFlowSpecItem::*;
+        match self {
+        PrefixDst(v)=> write!(f,"dst {}",v),
+        PrefixSrc(v) => write!(f,"src {}",v),
+        Proto(v) => write!(f,"proto {}",v),
+        PortAny(v) => write!(f,"port {}",v),
+        PortDst(v) => write!(f,"portdst {}",v),
+        PortSrc(v) => write!(f,"portsrc {}",v),
+        IcmpType(v) => write!(f,"icmptype {}",v),
+        IcmpCode(v) => write!(f,"icmpcode {}",v),
+        TcpFlags(v) => write!(f,"tcpflags {}",v),
+        PacketLength(v) => write!(f,"len {}",v),
+        Dscp(v) => write!(f,"dscp {}",v),
+        Fragment(v) => write!(f,"frag {}",v),
+        FlowLabel(v) => write!(f,"flowlabel {}",v),
+        }
     }
 }
-impl<T: FSItem<T>> BgpAddrItem<BgpFlowSpec<T>> for BgpFlowSpec<T> {
+impl<T: FSItem<T>> BgpAddrItem<BgpFlowSpecItem<T>> for BgpFlowSpecItem<T> {
     fn decode_from(_mode: BgpTransportMode, buf: &[u8]) -> Result<(Self, usize), BgpError> {
-        let pos: usize;
-        let nlen = if (buf[0] & 0xf0) == 0xf0 {
-            pos = 2;
-            ((getn_u16(buf) & 0xfff) as usize) + pos
-        } else {
-            pos = 1;
-            (buf[0] as usize) + pos
-        };
+        let pos = 0usize;
         match buf[pos] {
             1 => {
-                let r = T::decode_from_fs(&buf[pos + 1..nlen])?;
-                Ok((BgpFlowSpec::PrefixDst(r.0), pos + 2 + r.1))
+                let r = T::decode_from_fs(&buf[pos + 1..])?;
+                Ok((BgpFlowSpecItem::PrefixDst(r.0), pos + 1 + r.1))
             }
             2 => {
-                let r = T::decode_from_fs(&buf[pos + 1..nlen])?;
-                Ok((BgpFlowSpec::PrefixSrc(r.0), pos + 2 + r.1))
+                let r = T::decode_from_fs(&buf[pos + 1..])?;
+                Ok((BgpFlowSpecItem::PrefixSrc(r.0), pos + 1 + r.1))
             }
             3 => {
-                let r = FSOperVec::decode_from(&buf[pos + 1..nlen])?;
-                Ok((BgpFlowSpec::Proto(r.0), r.1 + pos + 1))
+                let r = FSOperVec::decode_from(&buf[pos + 1..])?;
+                Ok((BgpFlowSpecItem::Proto(r.0), r.1 + pos + 1))
             }
             4 => {
-                let r = FSOperVec::decode_from(&buf[pos + 1..nlen])?;
-                Ok((BgpFlowSpec::PortAny(r.0), r.1 + pos + 1))
+                let r = FSOperVec::decode_from(&buf[pos + 1..])?;
+                Ok((BgpFlowSpecItem::PortAny(r.0), r.1 + pos + 1))
             }
             5 => {
-                let r = FSOperVec::decode_from(&buf[pos + 1..nlen])?;
-                Ok((BgpFlowSpec::PortDst(r.0), r.1 + pos + 1))
+                let r = FSOperVec::decode_from(&buf[pos + 1..])?;
+                Ok((BgpFlowSpecItem::PortDst(r.0), r.1 + pos + 1))
             }
             6 => {
-                let r = FSOperVec::decode_from(&buf[pos + 1..nlen])?;
-                Ok((BgpFlowSpec::PortSrc(r.0), r.1 + pos + 1))
+                let r = FSOperVec::decode_from(&buf[pos + 1..])?;
+                Ok((BgpFlowSpecItem::PortSrc(r.0), r.1 + pos + 1))
             }
             7 => {
-                let r = FSOperVec::decode_from(&buf[pos + 1..nlen])?;
-                Ok((BgpFlowSpec::IcmpType(r.0), r.1 + pos + 1))
+                let r = FSOperVec::decode_from(&buf[pos + 1..])?;
+                Ok((BgpFlowSpecItem::IcmpType(r.0), r.1 + pos + 1))
             }
             8 => {
-                let r = FSOperVec::decode_from(&buf[pos + 1..nlen])?;
-                Ok((BgpFlowSpec::IcmpCode(r.0), r.1 + pos + 1))
+                let r = FSOperVec::decode_from(&buf[pos + 1..])?;
+                Ok((BgpFlowSpecItem::IcmpCode(r.0), r.1 + pos + 1))
             }
             9 => {
-                let r = FSOperVec::decode_from(&buf[pos + 1..nlen])?;
-                Ok((BgpFlowSpec::TcpFlags(r.0), r.1 + pos + 1))
+                let r = FSOperVec::decode_from(&buf[pos + 1..])?;
+                Ok((BgpFlowSpecItem::TcpFlags(r.0), r.1 + pos + 1))
             }
             10 => {
-                let r = FSOperVec::decode_from(&buf[pos + 1..nlen])?;
-                Ok((BgpFlowSpec::PacketLength(r.0), r.1 + pos + 1))
+                let r = FSOperVec::decode_from(&buf[pos + 1..])?;
+                Ok((BgpFlowSpecItem::PacketLength(r.0), r.1 + pos + 1))
             }
             11 => {
-                let r = FSOperVec::decode_from(&buf[pos + 1..nlen])?;
-                Ok((BgpFlowSpec::Dscp(r.0), r.1 + pos + 1))
+                let r = FSOperVec::decode_from(&buf[pos + 1..])?;
+                Ok((BgpFlowSpecItem::Dscp(r.0), r.1 + pos + 1))
             }
             12 => {
-                let r = FSOperVec::decode_from(&buf[pos + 1..nlen])?;
-                Ok((BgpFlowSpec::Fragment(r.0), r.1 + pos + 1))
+                let r = FSOperVec::decode_from(&buf[pos + 1..])?;
+                Ok((BgpFlowSpecItem::Fragment(r.0), r.1 + pos + 1))
             }
             13 => {
-                let r = FSOperVec::decode_from(&buf[pos + 1..nlen])?;
-                Ok((BgpFlowSpec::FlowLabel(r.0), r.1 + pos + 1))
+                let r = FSOperVec::decode_from(&buf[pos + 1..])?;
+                Ok((BgpFlowSpecItem::FlowLabel(r.0), r.1 + pos + 1))
             }
-            _ => Err(BgpError::static_str("Unknown flowspec typecode")),
+            _ => Err(BgpError::from_string(format!(
+                "Unknown flowspec typecode {}",
+                buf[pos]
+            ))),
+            //_ => Err(BgpError::static_str("Unknown flowspec typecode")),
         }
     }
     fn encode_to(&self, _mode: BgpTransportMode, buf: &mut [u8]) -> Result<usize, BgpError> {
         let pos;
         let nlen = match self {
-            BgpFlowSpec::PrefixDst(a) => 1 + a.get_store_size(),
-            BgpFlowSpec::PrefixSrc(a) => 1 + a.get_store_size(),
-            BgpFlowSpec::Proto(v) => 2 + v.getbyteslen(),
-            BgpFlowSpec::PortAny(v) => 2 + v.getbyteslen(),
-            BgpFlowSpec::PortDst(v) => 2 + v.getbyteslen(),
-            BgpFlowSpec::PortSrc(v) => 2 + v.getbyteslen(),
-            BgpFlowSpec::IcmpType(v) => 2 + v.getbyteslen(),
-            BgpFlowSpec::IcmpCode(v) => 2 + v.getbyteslen(),
-            BgpFlowSpec::TcpFlags(v) => 2 + v.getbyteslen(),
-            BgpFlowSpec::PacketLength(v) => 2 + v.getbyteslen(),
-            BgpFlowSpec::Dscp(v) => 2 + v.getbyteslen(),
-            BgpFlowSpec::Fragment(v) => 2 + v.getbyteslen(),
-            BgpFlowSpec::FlowLabel(v) => 2 + v.getbyteslen(),
+            BgpFlowSpecItem::PrefixDst(a) => 1 + a.get_store_size(),
+            BgpFlowSpecItem::PrefixSrc(a) => 1 + a.get_store_size(),
+            BgpFlowSpecItem::Proto(v) => 2 + v.getbyteslen(),
+            BgpFlowSpecItem::PortAny(v) => 2 + v.getbyteslen(),
+            BgpFlowSpecItem::PortDst(v) => 2 + v.getbyteslen(),
+            BgpFlowSpecItem::PortSrc(v) => 2 + v.getbyteslen(),
+            BgpFlowSpecItem::IcmpType(v) => 2 + v.getbyteslen(),
+            BgpFlowSpecItem::IcmpCode(v) => 2 + v.getbyteslen(),
+            BgpFlowSpecItem::TcpFlags(v) => 2 + v.getbyteslen(),
+            BgpFlowSpecItem::PacketLength(v) => 2 + v.getbyteslen(),
+            BgpFlowSpecItem::Dscp(v) => 2 + v.getbyteslen(),
+            BgpFlowSpecItem::Fragment(v) => 2 + v.getbyteslen(),
+            BgpFlowSpecItem::FlowLabel(v) => 2 + v.getbyteslen(),
         };
         if nlen > 4094 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         };
         if nlen < 240 {
             if buf.len() < (nlen + 1) {
-                return Err(BgpError::insufficient_buffer_size());
+                return Err(BgpError::InsufficientBufferSize(file!(), line!()));
             }
             buf[0] = nlen as u8;
             pos = 1;
         } else {
             if buf.len() < (nlen + 2) {
-                return Err(BgpError::insufficient_buffer_size());
+                return Err(BgpError::InsufficientBufferSize(file!(), line!()));
             }
             setn_u16(nlen as u16, buf);
             buf[0] |= 0xf0;
             pos = 2;
         };
         let tail = match self {
-            BgpFlowSpec::PrefixDst(a) => {
+            BgpFlowSpecItem::PrefixDst(a) => {
                 buf[pos] = 1;
                 a.encode_to_fs(&mut buf[pos + 1..])?;
                 pos + a.get_store_size() + 1
             }
-            BgpFlowSpec::PrefixSrc(a) => {
+            BgpFlowSpecItem::PrefixSrc(a) => {
                 buf[pos] = 2;
                 a.encode_to_fs(&mut buf[pos + 1..])?;
                 pos + a.get_store_size() + 1
             }
-            BgpFlowSpec::Proto(v) => {
+            BgpFlowSpecItem::Proto(v) => {
                 buf[pos] = 3;
                 pos + 1 + v.encode_to(&mut buf[pos + 1..])?
             }
-            BgpFlowSpec::PortAny(v) => {
+            BgpFlowSpecItem::PortAny(v) => {
                 buf[pos] = 4;
                 pos + 1 + v.encode_to(&mut buf[pos + 1..])?
             }
-            BgpFlowSpec::PortDst(v) => {
+            BgpFlowSpecItem::PortDst(v) => {
                 buf[pos] = 5;
                 pos + 1 + v.encode_to(&mut buf[pos + 1..])?
             }
-            BgpFlowSpec::PortSrc(v) => {
+            BgpFlowSpecItem::PortSrc(v) => {
                 buf[pos] = 6;
                 pos + 1 + v.encode_to(&mut buf[pos + 1..])?
             }
-            BgpFlowSpec::IcmpType(v) => {
+            BgpFlowSpecItem::IcmpType(v) => {
                 buf[pos] = 7;
                 pos + 1 + v.encode_to(&mut buf[pos + 1..])?
             }
-            BgpFlowSpec::IcmpCode(v) => {
+            BgpFlowSpecItem::IcmpCode(v) => {
                 buf[pos] = 8;
                 pos + 1 + v.encode_to(&mut buf[pos + 1..])?
             }
-            BgpFlowSpec::TcpFlags(v) => {
+            BgpFlowSpecItem::TcpFlags(v) => {
                 buf[pos] = 9;
                 pos + 1 + v.encode_to(&mut buf[pos + 1..])?
             }
-            BgpFlowSpec::PacketLength(v) => {
+            BgpFlowSpecItem::PacketLength(v) => {
                 buf[pos] = 10;
                 pos + 1 + v.encode_to(&mut buf[pos + 1..])?
             }
-            BgpFlowSpec::Dscp(v) => {
+            BgpFlowSpecItem::Dscp(v) => {
                 buf[pos] = 11;
                 pos + 1 + v.encode_to(&mut buf[pos + 1..])?
             }
-            BgpFlowSpec::Fragment(v) => {
+            BgpFlowSpecItem::Fragment(v) => {
                 buf[pos] = 12;
                 pos + 1 + v.encode_to(&mut buf[pos + 1..])?
             }
-            BgpFlowSpec::FlowLabel(v) => {
+            BgpFlowSpecItem::FlowLabel(v) => {
                 buf[pos] = 13;
                 pos + 1 + v.encode_to(&mut buf[pos + 1..])?
             }
@@ -582,11 +610,76 @@ impl<T: FSItem<T>> BgpAddrItem<BgpFlowSpec<T>> for BgpFlowSpec<T> {
         Ok(tail)
     }
 }
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct BgpFlowSpec<T: FSItem<T>> {
+    pub items: Vec<BgpFlowSpecItem<T>>,
+}
+impl<T: FSItem<T>> std::convert::From<BgpFlowSpecItem<T>> for BgpFlowSpec<T> {
+    fn from(f: BgpFlowSpecItem<T>) -> Self {
+        Self { items: vec![f] }
+    }
+}
+impl<T: FSItem<T> + std::fmt::Display> std::fmt::Display for BgpFlowSpec<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        util::fmt_vec(self.items.iter(), " && ", f)
+    }
+}
+impl<T: FSItem<T>> BgpAddrItem<BgpFlowSpec<T>> for BgpFlowSpec<T> {
+    fn decode_from(mode: BgpTransportMode, buf: &[u8]) -> Result<(Self, usize), BgpError> {
+        let mut pos: usize;
+        let nlen = if (buf[0] & 0xf0) == 0xf0 {
+            pos = 2;
+            ((getn_u16(buf) & 0xfff) as usize) + pos
+        } else {
+            pos = 1;
+            (buf[0] as usize) + pos
+        };
+        let mut items = Vec::new();
+        while pos < nlen {
+            let q = BgpFlowSpecItem::<T>::decode_from(mode, &buf[pos..])?;
+            items.push(q.0);
+            pos += q.1;
+        }
+        Ok((Self { items }, pos))
+    }
+    fn encode_to(&self, mode: BgpTransportMode, buf: &mut [u8]) -> Result<usize, BgpError> {
+        let mut pos = 2usize;
+        for i in self.items.iter() {
+            pos += i.encode_to(mode, &mut buf[pos..])?;
+        }
+        if pos > 0xfff {
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
+        }
+        setn_u16(pos as u16, buf);
+        buf[0] = buf[0] | 0xf0;
+        Ok(pos)
+    }
+}
+#[cfg(feature = "serialization")]
+impl<T: FSItem<T> + serde::Serialize> serde::Serialize for BgpFlowSpec<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.items.serialize(serializer)
+    }
+}
+#[cfg(feature = "serialization")]
+impl<'de, T: FSItem<T> + de::Deserialize<'de>> de::Deserialize<'de> for BgpFlowSpec<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        Ok(BgpFlowSpec {
+            items: Vec::deserialize(deserializer)?,
+        })
+    }
+}
 
 #[cfg(feature = "serialization")]
 mod ser {
     use super::*;
-    const BFS_N: &str = "BgpFlowSpec";
+    const BFS_N: &str = "BgpFlowSpecItem";
     const BFS_VARS: [&str; 13] = [
         "PrefixDst",
         "PrefixSrc",
@@ -602,49 +695,49 @@ mod ser {
         "Fragment",
         "FlowLabel",
     ];
-    impl<T: FSItem<T> + serde::Serialize> serde::Serialize for BgpFlowSpec<T> {
+    impl<T: FSItem<T> + serde::Serialize> serde::Serialize for BgpFlowSpecItem<T> {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
         {
             match self {
-                BgpFlowSpec::PrefixDst(a) => {
+                BgpFlowSpecItem::PrefixDst(a) => {
                     serializer.serialize_newtype_variant(BFS_N, 0, BFS_VARS[0], a)
                 }
-                BgpFlowSpec::PrefixSrc(a) => {
+                BgpFlowSpecItem::PrefixSrc(a) => {
                     serializer.serialize_newtype_variant(BFS_N, 1, BFS_VARS[1], a)
                 }
-                BgpFlowSpec::Proto(a) => {
+                BgpFlowSpecItem::Proto(a) => {
                     serializer.serialize_newtype_variant(BFS_N, 2, BFS_VARS[2], a)
                 }
-                BgpFlowSpec::PortAny(a) => {
+                BgpFlowSpecItem::PortAny(a) => {
                     serializer.serialize_newtype_variant(BFS_N, 3, BFS_VARS[3], a)
                 }
-                BgpFlowSpec::PortDst(a) => {
+                BgpFlowSpecItem::PortDst(a) => {
                     serializer.serialize_newtype_variant(BFS_N, 4, BFS_VARS[4], a)
                 }
-                BgpFlowSpec::PortSrc(a) => {
+                BgpFlowSpecItem::PortSrc(a) => {
                     serializer.serialize_newtype_variant(BFS_N, 5, BFS_VARS[5], a)
                 }
-                BgpFlowSpec::IcmpType(a) => {
+                BgpFlowSpecItem::IcmpType(a) => {
                     serializer.serialize_newtype_variant(BFS_N, 6, BFS_VARS[6], a)
                 }
-                BgpFlowSpec::IcmpCode(a) => {
+                BgpFlowSpecItem::IcmpCode(a) => {
                     serializer.serialize_newtype_variant(BFS_N, 7, BFS_VARS[7], a)
                 }
-                BgpFlowSpec::TcpFlags(a) => {
+                BgpFlowSpecItem::TcpFlags(a) => {
                     serializer.serialize_newtype_variant(BFS_N, 8, BFS_VARS[8], a)
                 }
-                BgpFlowSpec::PacketLength(a) => {
+                BgpFlowSpecItem::PacketLength(a) => {
                     serializer.serialize_newtype_variant(BFS_N, 9, BFS_VARS[9], a)
                 }
-                BgpFlowSpec::Dscp(a) => {
+                BgpFlowSpecItem::Dscp(a) => {
                     serializer.serialize_newtype_variant(BFS_N, 10, BFS_VARS[10], a)
                 }
-                BgpFlowSpec::Fragment(a) => {
+                BgpFlowSpecItem::Fragment(a) => {
                     serializer.serialize_newtype_variant(BFS_N, 11, BFS_VARS[11], a)
                 }
-                BgpFlowSpec::FlowLabel(a) => {
+                BgpFlowSpecItem::FlowLabel(a) => {
                     serializer.serialize_newtype_variant(BFS_N, 12, BFS_VARS[12], a)
                 }
             }
@@ -705,7 +798,7 @@ mod ser {
         d: std::marker::PhantomData<T>,
     }
     impl<'de, T: FSItem<T> + de::Deserialize<'de>> de::Visitor<'de> for BgpFlowSpecVisitor<T> {
-        type Value = BgpFlowSpec<T>;
+        type Value = BgpFlowSpecItem<T>;
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
             formatter.write_str("enum BgpFlowSpec")
         }
@@ -715,28 +808,42 @@ mod ser {
         {
             if let Some(key) = map.next_key()? {
                 match key {
-                    BgpFlowSpecVariant::PrefixDst => Ok(BgpFlowSpec::PrefixDst(map.next_value()?)),
-                    BgpFlowSpecVariant::PrefixSrc => Ok(BgpFlowSpec::PrefixSrc(map.next_value()?)),
-                    BgpFlowSpecVariant::Proto => Ok(BgpFlowSpec::Proto(map.next_value()?)),
-                    BgpFlowSpecVariant::PortAny => Ok(BgpFlowSpec::PortAny(map.next_value()?)),
-                    BgpFlowSpecVariant::PortDst => Ok(BgpFlowSpec::PortDst(map.next_value()?)),
-                    BgpFlowSpecVariant::PortSrc => Ok(BgpFlowSpec::PortSrc(map.next_value()?)),
-                    BgpFlowSpecVariant::IcmpType => Ok(BgpFlowSpec::IcmpType(map.next_value()?)),
-                    BgpFlowSpecVariant::IcmpCode => Ok(BgpFlowSpec::IcmpCode(map.next_value()?)),
-                    BgpFlowSpecVariant::TcpFlags => Ok(BgpFlowSpec::TcpFlags(map.next_value()?)),
-                    BgpFlowSpecVariant::PacketLength => {
-                        Ok(BgpFlowSpec::PacketLength(map.next_value()?))
+                    BgpFlowSpecVariant::PrefixDst => {
+                        Ok(BgpFlowSpecItem::PrefixDst(map.next_value()?))
                     }
-                    BgpFlowSpecVariant::Dscp => Ok(BgpFlowSpec::Dscp(map.next_value()?)),
-                    BgpFlowSpecVariant::Fragment => Ok(BgpFlowSpec::Fragment(map.next_value()?)),
-                    BgpFlowSpecVariant::FlowLabel => Ok(BgpFlowSpec::FlowLabel(map.next_value()?)),
+                    BgpFlowSpecVariant::PrefixSrc => {
+                        Ok(BgpFlowSpecItem::PrefixSrc(map.next_value()?))
+                    }
+                    BgpFlowSpecVariant::Proto => Ok(BgpFlowSpecItem::Proto(map.next_value()?)),
+                    BgpFlowSpecVariant::PortAny => Ok(BgpFlowSpecItem::PortAny(map.next_value()?)),
+                    BgpFlowSpecVariant::PortDst => Ok(BgpFlowSpecItem::PortDst(map.next_value()?)),
+                    BgpFlowSpecVariant::PortSrc => Ok(BgpFlowSpecItem::PortSrc(map.next_value()?)),
+                    BgpFlowSpecVariant::IcmpType => {
+                        Ok(BgpFlowSpecItem::IcmpType(map.next_value()?))
+                    }
+                    BgpFlowSpecVariant::IcmpCode => {
+                        Ok(BgpFlowSpecItem::IcmpCode(map.next_value()?))
+                    }
+                    BgpFlowSpecVariant::TcpFlags => {
+                        Ok(BgpFlowSpecItem::TcpFlags(map.next_value()?))
+                    }
+                    BgpFlowSpecVariant::PacketLength => {
+                        Ok(BgpFlowSpecItem::PacketLength(map.next_value()?))
+                    }
+                    BgpFlowSpecVariant::Dscp => Ok(BgpFlowSpecItem::Dscp(map.next_value()?)),
+                    BgpFlowSpecVariant::Fragment => {
+                        Ok(BgpFlowSpecItem::Fragment(map.next_value()?))
+                    }
+                    BgpFlowSpecVariant::FlowLabel => {
+                        Ok(BgpFlowSpecItem::FlowLabel(map.next_value()?))
+                    }
                 }
             } else {
                 Err(de::Error::missing_field(BFS_VARS[0]))
             }
         }
     }
-    impl<'de, T: FSItem<T> + de::Deserialize<'de>> de::Deserialize<'de> for BgpFlowSpec<T> {
+    impl<'de, T: FSItem<T> + de::Deserialize<'de>> de::Deserialize<'de> for BgpFlowSpecItem<T> {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where
             D: de::Deserializer<'de>,

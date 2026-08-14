@@ -111,7 +111,7 @@ pub fn slice<T>(buf: &[T], start: usize, end: usize) -> Result<&[T], BgpError> {
     if start <= end && end <= buf.len() {
         Ok(&buf[start..end])
     } else {
-        Err(BgpError::InsufficientBufferSize)
+        Err(BgpError::InsufficientBufferSize(file!(), line!()))
     }
 }
 /// Returns BgpError::InsufficientBufferSize if slicing is out of bounds
@@ -119,6 +119,21 @@ pub fn slice_mut<T>(buf: &mut [T], start: usize, end: usize) -> Result<&mut [T],
     if start <= end && end <= buf.len() {
         Ok(&mut buf[start..end])
     } else {
-        Err(BgpError::InsufficientBufferSize)
+        Err(BgpError::InsufficientBufferSize(file!(), line!()))
     }
+}
+pub(crate) fn fmt_vec<T: std::fmt::Display, C: std::iter::Iterator<Item = T>, S: std::fmt::Display>(
+    v: C,
+    sep: S,
+    f: &mut std::fmt::Formatter,
+) -> std::fmt::Result {
+    let mut cnt = false;
+    for c in v {
+        if cnt {
+            sep.fmt(f)?;
+        }
+        c.fmt(f)?;
+        cnt = true;
+    }
+    Ok(())
 }

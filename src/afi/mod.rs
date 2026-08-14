@@ -59,7 +59,62 @@ pub enum BgpAddr {
     L2(BgpL2),
     MVPN(BgpMVPN),
 }
-
+impl std::default::Default for BgpAddr {
+    fn default() -> Self {
+        BgpAddr::None
+    }
+}
+impl BgpAddr {
+    pub fn is_none(&self) -> bool {
+        match self {
+            BgpAddr::None => true,
+            _ => false
+        }
+    }
+    pub fn is_v4(&self) -> bool {
+        match self {
+            BgpAddr::V4(_) => true,
+            _ => false
+        }
+    }
+    pub fn is_v6(&self) -> bool {
+        match self {
+            BgpAddr::V6(_) => true,
+            _ => false
+        }
+    }
+    pub fn is_v4rd(&self) -> bool {
+        match self {
+            BgpAddr::V4RD(_) => true,
+            _ => false
+        }
+    }
+    pub fn is_v6rd(&self) -> bool {
+        match self {
+            BgpAddr::V6RD(_) => true,
+            _ => false
+        }
+    }
+    pub fn is_l2(&self) -> bool {
+        match self {
+            BgpAddr::L2(_) => true,
+            _ => false
+        }
+    }
+}
+impl std::fmt::Display for BgpAddr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            BgpAddr::None => write!(f, "<>"),
+            BgpAddr::V4(s) => write!(f, "{}", s),
+            BgpAddr::V6(s) => write!(f, "{}", s),
+            BgpAddr::V4RD(s) => write!(f, "{}", s),
+            BgpAddr::V6RD(s) => write!(f, "{}", s),
+            BgpAddr::L2(s) => write!(f, "{}", s),
+            BgpAddr::MVPN(s) => write!(f, "{}", s),
+        }
+    }
+}
 /// Any kind of prefix - v4 or v6
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum BgpNet {
@@ -316,7 +371,7 @@ impl BgpRD {
             Ok(BgpRD { rdh: asn, rdl: aan })
         } else {
             if (aan & 0xffff0000) != 0 {
-                return Err(BgpError::ProtocolError);
+                return Err(BgpError::ProtocolError(file!(), line!()));
             }
             Ok(BgpRD {
                 rdh: 0x20000 | (asn >> 16),
@@ -389,6 +444,9 @@ impl BgpRD {
             _ => None,
         }
     }
+    pub fn to_u64(&self) -> u64 {
+        ((self.rdh as u64) << 32)|(self.rdl as u64)
+    }
 }
 impl std::str::FromStr for BgpRD {
     type Err = BgpError;
@@ -454,20 +512,6 @@ impl std::fmt::Display for BgpRD {
         }
     }
 }
-
-impl std::fmt::Display for BgpAddr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            BgpAddr::None => write!(f, "<>"),
-            BgpAddr::V4(s) => write!(f, "{}", s),
-            BgpAddr::V6(s) => write!(f, "{}", s),
-            BgpAddr::V4RD(s) => write!(f, "{}", s),
-            BgpAddr::V6RD(s) => write!(f, "{}", s),
-            BgpAddr::L2(s) => write!(f, "{}", s),
-            BgpAddr::MVPN(s) => write!(f, "{}", s),
-        }
-    }
-}
 /// MPLS labels as NLRI component
 #[derive(Debug, Clone)]
 #[cfg(feature = "serialization")]
@@ -529,10 +573,16 @@ impl std::fmt::Display for MplsLabels {
 
 impl BgpItem<MplsLabels> for MplsLabels {
     fn extract_bits_from(bits: u8, buf: &[u8]) -> Result<(MplsLabels, usize), BgpError> {
+        if buf.len()<3 {
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
+        }
         let mut lbls = Vec::<u32>::new();
         let mut curpos: usize = 0;
         let mut leftbits = bits;
         while leftbits > 0 {
+            if buf.len()<(curpos+3) {
+                return Err(BgpError::InsufficientBufferSize(file!(), line!()));
+            }
             let labelval = (buf[curpos] as u32) << 12
                 | (buf[curpos + 1] as u32) << 4
                 | (buf[curpos + 2] as u32) >> 4;
@@ -556,6 +606,9 @@ impl BgpItem<MplsLabels> for MplsLabels {
     fn set_bits_to(&self, buf: &mut [u8]) -> Result<(u8, usize), BgpError> {
         if self.labels.is_empty() {
             return Ok((0, 0));
+        }
+        if buf.len()<(self.labels.len()*4) {
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let mut curpos: usize = 0;
         for l in self.labels.iter() {
@@ -681,7 +734,7 @@ impl<T: BgpItem<T> + Ord> Ord for WithRd<T> {
 impl<T: BgpItem<T>> BgpItem<WithRd<T>> for WithRd<T> {
     fn extract_bits_from(bits: u8, buf: &[u8]) -> Result<(WithRd<T>, usize), BgpError> {
         if buf.len() < 8 {
-            return Err(BgpError::InsufficientBufferSize);
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let r = BgpRD::decode_from(BgpTransportMode::IPv4, &buf[0..8])?;
         let p = T::extract_bits_from(bits - ((r.1 * 8) as u8), &buf[r.1..])?;

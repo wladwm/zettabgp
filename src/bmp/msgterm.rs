@@ -34,7 +34,7 @@ impl BmpMessageTermination {
             let infolen = getn_u16(&buf[pos + 2..]) as usize;
             pos += 4;
             if buf.len() - pos < infolen {
-                return Err(BgpError::InsufficientBufferSize);
+                return Err(BgpError::InsufficientBufferSize(file!(), line!()));
             }
             match infotype {
                 0 => ret.str0 = Some(core::str::from_utf8(&buf[pos..pos + infolen])?.to_string()),
@@ -50,7 +50,7 @@ impl BmpMessageTermination {
         if let Some(str0) = &self.str0 {
             let str0 = str0.as_bytes();
             if buf.len() - curpos < 4 + str0.len() {
-                return Err(BgpError::InsufficientBufferSize);
+                return Err(BgpError::InsufficientBufferSize(file!(), line!()));
             }
             setn_u16(0, &mut buf[curpos..]);
             curpos += 2;
@@ -61,7 +61,7 @@ impl BmpMessageTermination {
         }
         if let Some(reason) = self.reason {
             if buf.len() - curpos < 6 {
-                return Err(BgpError::InsufficientBufferSize);
+                return Err(BgpError::InsufficientBufferSize(file!(), line!()));
             }
             setn_u16(1, &mut buf[curpos..]);
             curpos += 2;

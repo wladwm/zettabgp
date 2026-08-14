@@ -8,6 +8,8 @@
 
 //! BGP attribute set path attribute
 
+use std::fmt::Write;
+
 use crate::message::attributes::*;
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
@@ -72,7 +74,9 @@ impl std::fmt::Debug for BgpAttrSet {
 }
 impl std::fmt::Display for BgpAttrSet {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "BgpAttrSet AS{} {:?}", self.asn, self.attrs)
+        write!(f, "AS{}(", self.asn)?;
+        crate::util::fmt_vec(self.attrs.iter(), ',', f)?;
+        f.write_char(')')
     }
 }
 impl BgpAttr for BgpAttrSet {

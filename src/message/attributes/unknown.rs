@@ -57,7 +57,7 @@ impl std::fmt::Display for BgpAttrUnknown {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "PA unknown(tc={:?},flg={:?} {:?})",
+            "PA_unknown(tc={:?},flg={:?} {:?})",
             self.params.typecode, self.params.flags, self.value
         )
     }

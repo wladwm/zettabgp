@@ -21,12 +21,12 @@ pub struct BmpInfoVal {
 impl BmpInfoVal {
     fn decode_from(buf: &[u8]) -> Result<(BmpInfoVal, usize), BgpError> {
         if buf.len() < 4 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         };
         let tp = getn_u16(buf);
         let ln = getn_u16(&buf[2..4]) as usize;
         if ln > (buf.len() - 4) {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         };
         Ok((
             BmpInfoVal {
@@ -38,7 +38,7 @@ impl BmpInfoVal {
     }
     fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
         if buf.len() < 4 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         };
         let mut curpos = 0;
         setn_u16(self.infotype, &mut buf[curpos..]);

@@ -45,7 +45,7 @@ impl BgpOrigin {
     }
     pub fn decode_from(buf: &[u8]) -> Result<BgpOrigin, BgpError> {
         if buf.is_empty() {
-            Err(BgpError::InsufficientBufferSize)
+            Err(BgpError::InsufficientBufferSize(file!(), line!()))
         } else {
             match buf[0] {
                 0 => Ok(BgpOrigin {
@@ -73,13 +73,13 @@ impl std::fmt::Display for BgpOrigin {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.value {
             BgpAttrOrigin::Igp => {
-                write!(f, "origin igp")
+                write!(f, "igp")
             }
             BgpAttrOrigin::Egp => {
-                write!(f, "origin egp")
+                write!(f, "egp")
             }
             BgpAttrOrigin::Incomplete => {
-                write!(f, "origin incomplete")
+                write!(f, "incomplete")
             }
         }
     }
@@ -94,7 +94,7 @@ impl BgpAttr for BgpOrigin {
     }
     fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
         if buf.is_empty() {
-            Err(BgpError::InsufficientBufferSize)
+            Err(BgpError::InsufficientBufferSize(file!(), line!()))
         } else {
             match self.value {
                 BgpAttrOrigin::Igp => {

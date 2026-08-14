@@ -173,7 +173,7 @@ impl BgpCapGR {
     }
     pub fn encode_to(&self, buf: &mut [u8]) -> Result<(), BgpError> {
         if buf.len() < 4 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         setn_u16(self.afi, &mut buf[0..2]);
         buf[2] = self.safi;
@@ -185,7 +185,7 @@ impl BgpCapGR {
     }
     pub fn decode_from(buf: &[u8]) -> Result<BgpCapGR, BgpError> {
         if buf.len() < 4 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         Ok(BgpCapGR {
             afi: getn_u16(&buf[0..2]),
@@ -222,7 +222,7 @@ impl BgpCapLLGR {
     }
     pub fn encode_to(&self, buf: &mut [u8]) -> Result<(), BgpError> {
         if buf.len() < 7 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         if self.stale_time.leading_zeros() < 8 {
             return Err(BgpError::static_str("stale_time must fit into 24 bits"));
@@ -235,7 +235,7 @@ impl BgpCapLLGR {
     }
     pub fn decode_from(buf: &[u8]) -> Result<BgpCapLLGR, BgpError> {
         if buf.len() < 7 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         Ok(BgpCapLLGR {
             afi: getn_u16(&buf[0..2]),
@@ -277,7 +277,7 @@ impl BgpCapAddPath {
     }
     pub fn encode_to(&self, buf: &mut [u8]) -> Result<(), BgpError> {
         if buf.len() < 4 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         setn_u16(self.afi, &mut buf[0..2]);
         buf[2] = self.safi;
@@ -286,7 +286,7 @@ impl BgpCapAddPath {
     }
     pub fn decode_from(buf: &[u8]) -> Result<BgpCapAddPath, BgpError> {
         if buf.len() < 4 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         Ok(BgpCapAddPath {
             afi: getn_u16(&buf[0..2]),
@@ -392,7 +392,7 @@ impl BgpCapability {
     /// Store capability code into the given buffer.
     fn fill_buffer(&self, buf: &mut [u8]) -> Result<(), BgpError> {
         if buf.len() < self.bytes_len() {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         match self {
             BgpCapability::SafiIPv4u => {
@@ -649,12 +649,12 @@ impl BgpCapability {
         buf: &[u8],
     ) -> Result<(Result<BgpCapability, (u8, Vec<u8>)>, usize), BgpError> {
         if buf.len() < 2 {
-            return Err(BgpError::InsufficientBufferSize);
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let captype = buf[0];
         let datalength = buf[1] as usize;
         if buf.len() < datalength + 2 {
-            return Err(BgpError::InsufficientBufferSize);
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let data = &buf[2..2 + datalength];
 
@@ -878,7 +878,7 @@ impl BgpSessionParams {
         messagelen: usize,
     ) -> Result<usize, BgpError> {
         if buf.len() < (messagelen + 19) {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         buf[0..16].clone_from_slice(&[255_u8; 16]);
         let lng: u16 = (messagelen as u16) + 19;
@@ -896,7 +896,7 @@ impl BgpSessionParams {
         messagelen: usize,
     ) -> Result<(), BgpError> {
         if buf.len() < (messagelen + 19) {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         buf[0..16].clone_from_slice(&[255_u8; 16]);
         let lng: u16 = (messagelen as u16) + 19;

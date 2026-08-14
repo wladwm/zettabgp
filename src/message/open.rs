@@ -32,7 +32,7 @@ struct BgpOpenHead {
 impl BgpMessage for BgpOpenMessage {
     fn decode_from(&mut self, _peer: &BgpSessionParams, buf: &[u8]) -> Result<(), BgpError> {
         if buf.len() < 10 {
-            return Err(BgpError::InsufficientBufferSize);
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         if buf[0] != 4 {
             return Err(BgpError::static_str("Invalid BGP version <> 4"));
@@ -77,7 +77,7 @@ impl BgpMessage for BgpOpenMessage {
     }
     fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
         if buf.len() < 10 {
-            return Err(BgpError::InsufficientBufferSize);
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let ptr: *mut u8 = slice_mut(buf, 1, buf.len())?.as_mut_ptr();
         let ptr: *mut BgpOpenHead = ptr as *mut BgpOpenHead;
@@ -265,7 +265,7 @@ mod tests {
         let truncate_amount = 3;
         buf.truncate(encode.unwrap() - truncate_amount as usize);
         let decode = msg.decode_from(&params, &buf);
-        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize)));
+        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize(file!(), line!()))));
     }
 
     #[test]
@@ -324,7 +324,7 @@ mod tests {
 
         let mut decode_msg = BgpOpenMessage::new();
         let decode = decode_msg.decode_from(&params, &buf);
-        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize)));
+        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize(file!(), line!()))));
     }
 
     #[test]
@@ -385,7 +385,7 @@ mod tests {
         };
 
         let encode = msg.encode_to(&params, &mut buf);
-        assert!(matches!(encode, Err(BgpError::InsufficientBufferSize)));
+        assert!(matches!(encode, Err(BgpError::InsufficientBufferSize(file!(), line!()))));
     }
 
     #[test]
@@ -412,6 +412,6 @@ mod tests {
         };
 
         let encode = msg.encode_to(&params, &mut buf);
-        assert!(matches!(encode, Err(BgpError::InsufficientBufferSize)));
+        assert!(matches!(encode, Err(BgpError::InsufficientBufferSize(file!(), line!()))));
     }
 }

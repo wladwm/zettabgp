@@ -14,7 +14,7 @@ use std::cmp::Ordering;
 
 pub fn decode_bmp_addr_from(buf: &[u8]) -> Result<std::net::IpAddr, BgpError> {
     if buf.len() < 16 {
-        return Err(BgpError::insufficient_buffer_size());
+        return Err(BgpError::InsufficientBufferSize(file!(), line!()));
     }
     if buf[0] == 0
         && buf[1] == 0
@@ -36,7 +36,7 @@ pub fn decode_bmp_addr_from(buf: &[u8]) -> Result<std::net::IpAddr, BgpError> {
 }
 pub fn encode_bmp_addr_to(addr: &std::net::IpAddr, buf: &mut [u8]) -> Result<usize, BgpError> {
     if buf.len() < 16 {
-        return Err(BgpError::insufficient_buffer_size());
+        return Err(BgpError::InsufficientBufferSize(file!(), line!()));
     }
     match addr {
         std::net::IpAddr::V4(v4) => {
@@ -74,7 +74,7 @@ pub struct BmpMessagePeerHeader {
 impl BmpMessagePeerHeader {
     pub fn decode_from(buf: &[u8]) -> Result<(BmpMessagePeerHeader, usize), BgpError> {
         if buf.len() < 42 {
-            return Err(BgpError::InsufficientBufferSize);
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         Ok((
             BmpMessagePeerHeader {
@@ -91,7 +91,7 @@ impl BmpMessagePeerHeader {
     }
     pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
         if buf.len() < 42 {
-            return Err(BgpError::InsufficientBufferSize);
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         buf[0] = self.peertype;
         buf[1] = self.flags;

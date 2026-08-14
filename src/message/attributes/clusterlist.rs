@@ -44,7 +44,7 @@ impl std::fmt::Debug for BgpClusterList {
 }
 impl std::fmt::Display for BgpClusterList {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "BgpClusterList {:?}", self.value)
+        crate::util::fmt_vec(self.value.iter(), ',', f)
     }
 }
 impl BgpAttr for BgpClusterList {

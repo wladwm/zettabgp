@@ -23,6 +23,15 @@ pub struct BgpExtCommunity {
     pub b: u32,
 }
 impl BgpExtCommunity {
+    /// creates extcommunity
+    pub fn new(ctype: u8,subtype: u8,a: u16,b: u32) -> BgpExtCommunity {
+        BgpExtCommunity {
+            ctype,
+            subtype,
+            a,
+            b,
+        }
+    }
     /// creates route-target with AS + number
     pub fn rt_asn(asn: u16, val: u32) -> BgpExtCommunity {
         BgpExtCommunity {
@@ -55,7 +64,7 @@ impl BgpExtCommunity {
     }
     pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
         if buf.len() < 8 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         buf[0] = self.ctype;
         buf[1] = self.subtype;
@@ -102,6 +111,16 @@ impl std::fmt::Display for BgpExtCommunity {
             write!(f, "ext-origin:{}:{}", self.get_ipv4(), self.get_num())
         } else if self.subtype == 3 && self.ctype < 3 {
             write!(f, "ext-origin:{}:{}:{}", self.ctype, self.a, self.b)
+        } else if self.subtype == 128 && self.ctype == 6 {
+            write!(f, "fs-traffic-rate-bytes:{}:{}", self.a, self.b)
+        } else if self.subtype == 128 && self.ctype == 7 {
+            write!(f, "fs-traffic-action:{}:{}", self.a, self.b)
+        } else if self.subtype == 128 && self.ctype == 8 {
+            write!(f, "fs-rt-redirect:{}:{}", self.a, self.b)
+        } else if self.subtype == 128 && self.ctype == 9 {
+            write!(f, "fs-remark:{}:{}", self.a, self.b)
+        } else if self.subtype == 128 && self.ctype == 12 {
+            write!(f, "fs-traffic-rate-packets:{}:{}", self.a, self.b)
         } else if self.subtype == 9 {
             write!(f, "ext-src-as:{}:{}:{}", self.ctype, self.a, self.b)
         } else if self.subtype == 11 && self.ctype == 1 {
@@ -202,6 +221,13 @@ impl Default for BgpExtCommunityList {
         Self::new()
     }
 }
+impl std::convert::From<BgpExtCommunity> for BgpExtCommunityList {
+    fn from(v: BgpExtCommunity) -> Self {
+        let mut value = std::collections::BTreeSet::new();
+        value.insert(v);
+        BgpExtCommunityList { value }
+    }
+}
 impl std::fmt::Debug for BgpExtCommunityList {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BgpExtCommunityList")
@@ -211,7 +237,7 @@ impl std::fmt::Debug for BgpExtCommunityList {
 }
 impl std::fmt::Display for BgpExtCommunityList {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "BgpExtCommunityList {:?}", self.value)
+        crate::util::fmt_vec(self.value.iter(), ',', f)
     }
 }
 impl BgpAttr for BgpExtCommunityList {

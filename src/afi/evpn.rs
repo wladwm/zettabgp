@@ -554,7 +554,7 @@ impl BgpAddrItem<BgpEVPN> for BgpEVPN {
         };
         match pos {
             0..=0xff => buf[1] = pos as u8,
-            _ => return Err(BgpError::TooManyData),
+            _ => return Err(BgpError::TooManyData(file!(), line!())),
         }
 
         Ok(pos + 2)

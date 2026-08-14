@@ -76,7 +76,11 @@ impl BgpMPUpdates {
                 match safi {
                     1 | 2 | 4 | 5 | 66 | 133 => {
                         //unicast|multicast|labeled unicast|mvpn|mdt|flow
-                        nh = BgpAddr::V4(decode_addrv4_from(&buf[curpos..(curpos + nhlen)])?);
+                        nh = if nhlen == 0 {
+                            BgpAddr::None
+                        } else {
+                            BgpAddr::V4(decode_addrv4_from(&buf[curpos..(curpos + nhlen)])?)
+                        };
                         curpos += nhlen;
                     }
                     128 | 129 | 134 => {
@@ -99,7 +103,11 @@ impl BgpMPUpdates {
                 match safi {
                     1 | 2 | 4 | 66 => {
                         //unicast|multicast|labeled unicast|mdt
-                        nh = BgpAddr::V6(decode_addrv6_from(&buf[curpos..(curpos + nhlen)])?);
+                        nh = if nhlen == 0 {
+                            BgpAddr::None
+                        } else {
+                            BgpAddr::V6(decode_addrv6_from(&buf[curpos..(curpos + nhlen)])?)
+                        };
                         curpos += nhlen;
                     }
                     128 | 129 => {

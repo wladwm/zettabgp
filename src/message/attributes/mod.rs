@@ -23,6 +23,7 @@ pub mod nexthop;
 pub mod origin;
 pub mod originatorid;
 pub mod pmsitunnelattr;
+pub mod otc;
 pub mod unknown;
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
@@ -42,6 +43,7 @@ use nexthop::BgpNextHop;
 use origin::BgpOrigin;
 use originatorid::BgpOriginatorID;
 use pmsitunnelattr::BgpPMSITunnel;
+use otc::BgpOTC;
 use unknown::BgpAttrUnknown;
 
 /// BGP path attribute mandatory parameters - typecode and flags
@@ -80,6 +82,7 @@ pub enum BgpAttrItem {
     PMSITunnel(BgpPMSITunnel),
     AttrSet(BgpAttrSet),
     Connector(BgpConnector),
+    OTC(BgpOTC),
     Unknown(BgpAttrUnknown),
 }
 
@@ -137,6 +140,9 @@ impl BgpAttrItem {
                     &buf[0..attrlen],
                 )?))
             }
+            35 => Ok(BgpAttrItem::OTC(
+                BgpOTC::decode_from(peer,buf)?,
+            )),
             128 => Ok(BgpAttrItem::AttrSet(BgpAttrSet::decode_from(peer, buf)?)),
             _ => {
                 log::trace!(
@@ -201,7 +207,34 @@ impl BgpAttrItem {
             BgpAttrItem::PMSITunnel(pa) => BgpAttrItem::encode_bgpattr(pa, peer, buf),
             BgpAttrItem::AttrSet(pa) => BgpAttrItem::encode_bgpattr(pa, peer, buf),
             BgpAttrItem::Connector(pa) => BgpAttrItem::encode_bgpattr(pa, peer, buf),
+            BgpAttrItem::OTC(pa) => BgpAttrItem::encode_bgpattr(pa, peer, buf),
             BgpAttrItem::Unknown(pa) => BgpAttrItem::encode_bgpattr(pa, peer, buf),
+        }
+    }
+}
+
+impl std::fmt::Display for BgpAttrItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            BgpAttrItem::Origin(pa) => pa.fmt(f),
+            BgpAttrItem::ASPath(pa) => pa.fmt(f),
+            BgpAttrItem::NextHop(pa) => pa.fmt(f),
+            BgpAttrItem::MED(pa) => pa.fmt(f),
+            BgpAttrItem::LocalPref(pa) => pa.fmt(f),
+            BgpAttrItem::AtomicAggregate(pa) => pa.fmt(f),
+            BgpAttrItem::AggregatorAS(pa) => pa.fmt(f),
+            BgpAttrItem::CommunityList(pa) => pa.fmt(f),
+            BgpAttrItem::OriginatorID(pa) => pa.fmt(f),
+            BgpAttrItem::ClusterList(pa) => pa.fmt(f),
+            BgpAttrItem::MPUpdates(pa) => pa.fmt(f),
+            BgpAttrItem::MPWithdraws(pa) => pa.fmt(f),
+            BgpAttrItem::ExtCommunityList(pa) => pa.fmt(f),
+            BgpAttrItem::LargeCommunityList(pa) => pa.fmt(f),
+            BgpAttrItem::PMSITunnel(pa) => pa.fmt(f),
+            BgpAttrItem::AttrSet(pa) => pa.fmt(f),
+            BgpAttrItem::Connector(pa) => pa.fmt(f),
+            BgpAttrItem::OTC(pa) => pa.fmt(f),
+            BgpAttrItem::Unknown(pa) => pa.fmt(f),
         }
     }
 }

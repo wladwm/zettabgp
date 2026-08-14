@@ -49,7 +49,7 @@ impl std::fmt::Debug for BgpOriginatorID {
 }
 impl std::fmt::Display for BgpOriginatorID {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "BgpOriginatorID {}", self.value)
+        write!(f, "{}", self.value)
     }
 }
 impl BgpAttr for BgpOriginatorID {

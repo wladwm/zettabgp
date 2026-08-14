@@ -79,7 +79,7 @@ impl BMPSession {
     }
     fn decode_rm(&self, buf: &[u8]) -> Result<BmpMessageRouteMonitoring, BgpError> {
         if buf.len() < 62 {
-            return Err(BgpError::InsufficientBufferSize);
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let pm = BmpMessagePeerHeader::decode_from(buf)?;
         let mut pos = pm.1;
@@ -134,7 +134,7 @@ pub struct BmpMessageHeader {
 impl BmpMessageHeader {
     pub fn decode_from(buf: &[u8]) -> Result<(BmpMessageHeader, usize), BgpError> {
         if buf.len() < 5 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         if buf[0] != 3 {
             return Err(BgpError::static_str("BMP packet version != 3"));
@@ -149,7 +149,7 @@ impl BmpMessageHeader {
     }
     pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
         if buf.len() < 5 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         buf[0] = self.version;
         setn_u32(self.msglength as u32, &mut buf[1..]);
@@ -183,7 +183,7 @@ impl BmpMessage {
     }
     pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
         if buf.is_empty() {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let mut curpos = 0;
         match self {

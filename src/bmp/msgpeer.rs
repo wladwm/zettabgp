@@ -43,7 +43,7 @@ pub struct BmpMessagePeerDown {
 impl BmpMessagePeerUp {
     pub fn decode_from(buf: &[u8]) -> Result<(BmpMessagePeerUp, usize), BgpError> {
         if buf.len() < 62 {
-            return Err(BgpError::InsufficientBufferSize);
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let pm = BmpMessagePeerHeader::decode_from(buf)?;
         let mut ret = BmpMessagePeerUp {
@@ -74,7 +74,7 @@ impl BmpMessagePeerUp {
     }
     pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
         if buf.len() < 62 {
-            return Err(BgpError::InsufficientBufferSize);
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let mut curpos: usize = 0;
         curpos += self.peer.encode_to(buf)?;
@@ -105,7 +105,7 @@ impl BmpMessagePeerUp {
 impl BmpMessagePeerDown {
     pub fn decode_from(buf: &[u8]) -> Result<(BmpMessagePeerDown, usize), BgpError> {
         if buf.len() < 43 {
-            return Err(BgpError::InsufficientBufferSize);
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let pm = BmpMessagePeerHeader::decode_from(buf)?;
         let mut pos = pm.1;
@@ -126,7 +126,7 @@ impl BmpMessagePeerDown {
             }
             2 => {
                 if buf.len() - pos < 2 {
-                    return Err(BgpError::InsufficientBufferSize);
+                    return Err(BgpError::InsufficientBufferSize(file!(), line!()));
                 }
                 let state = u16::from_be_bytes((&buf[pos..pos + 2]).try_into().unwrap());
                 pos += 2;
@@ -152,7 +152,7 @@ impl BmpMessagePeerDown {
     }
     pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
         if buf.len() < 43 {
-            return Err(BgpError::InsufficientBufferSize);
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let mut curpos: usize = 0;
         curpos += self.peer.encode_to(buf)?;
@@ -163,7 +163,7 @@ impl BmpMessagePeerDown {
                 curpos += 1;
 
                 if buf.len() - curpos < 19 {
-                    return Err(BgpError::InsufficientBufferSize);
+                    return Err(BgpError::InsufficientBufferSize(file!(), line!()));
                 }
 
                 let sesspars: &BgpSessionParams = &(&self.peer).into();
@@ -180,7 +180,7 @@ impl BmpMessagePeerDown {
                 curpos += 1;
 
                 if buf.len() - curpos < 2 {
-                    return Err(BgpError::InsufficientBufferSize);
+                    return Err(BgpError::InsufficientBufferSize(file!(), line!()));
                 }
                 setn_u16(*state, &mut buf[curpos..]);
                 curpos += 2;
@@ -190,7 +190,7 @@ impl BmpMessagePeerDown {
                 curpos += 1;
 
                 if buf.len() - curpos < 19 {
-                    return Err(BgpError::InsufficientBufferSize);
+                    return Err(BgpError::InsufficientBufferSize(file!(), line!()));
                 }
 
                 let sesspars: &BgpSessionParams = &(&self.peer).into();

@@ -43,7 +43,7 @@ impl std::fmt::Debug for BgpLocalpref {
 }
 impl std::fmt::Display for BgpLocalpref {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "BgpLocalpref {:?}", self.value)
+        write!(f, "{}", self.value)
     }
 }
 impl BgpAttr for BgpLocalpref {

@@ -71,7 +71,7 @@ impl BgpLargeCommunity {
     }
     pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
         if buf.len() < 12 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         setn_u32(self.ga, buf);
         setn_u32(self.ldp1, &mut buf[4..8]);
@@ -118,7 +118,7 @@ impl std::fmt::Debug for BgpLargeCommunityList {
 }
 impl std::fmt::Display for BgpLargeCommunityList {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "BgpLargeCommunityList {:?}", self.value)
+        crate::util::fmt_vec(self.value.iter(), ',', f)
     }
 }
 impl BgpAttr for BgpLargeCommunityList {
@@ -142,14 +142,14 @@ impl Default for BgpLargeCommunityList {
     }
 }
 impl BgpCommunity {
-    const NO_EXPORT_STR0: &str = "no_export";
-    const NO_EXPORT_STR1: &str = "noexport";
-    const NO_EXPORT_STR2: &str = "no-export";
-    const NO_ADVERTISE_STR0: &str = "no_advertise";
-    const NO_ADVERTISE_STR1: &str = "no-advertise";
-    const NO_EXPORT_SUBCONFED_STR: &str = "no_export_subconfed";
-    const NOPEER_STR0: &str = "nopeer";
-    const NOPEER_STR1: &str = "no-peer";
+    const NO_EXPORT_STR0: &'static str = "no_export";
+    const NO_EXPORT_STR1: &'static str = "noexport";
+    const NO_EXPORT_STR2: &'static str = "no-export";
+    const NO_ADVERTISE_STR0: &'static str = "no_advertise";
+    const NO_ADVERTISE_STR1: &'static str = "no-advertise";
+    const NO_EXPORT_SUBCONFED_STR: &'static str = "no_export_subconfed";
+    const NOPEER_STR0: &'static str = "nopeer";
+    const NOPEER_STR1: &'static str = "no-peer";
     pub fn new(v: u32) -> BgpCommunity {
         BgpCommunity { value: v }
     }
@@ -168,7 +168,7 @@ impl BgpCommunity {
     }
     fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
         if buf.len() < 4 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         };
         setn_u32(self.value, buf);
         Ok(4)
@@ -263,7 +263,7 @@ impl std::fmt::Debug for BgpCommunityList {
 }
 impl std::fmt::Display for BgpCommunityList {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "BgpCommunityList {:?}", self.value)
+        crate::util::fmt_vec(self.value.iter(), ',', f)
     }
 }
 impl FromStr for BgpCommunityList {
@@ -289,7 +289,7 @@ impl BgpAttr for BgpCommunityList {
     }
     fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
         if buf.len() < self.value.len() * 4 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let mut curpos: usize = 0;
         for c in &self.value {

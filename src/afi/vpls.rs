@@ -43,7 +43,7 @@ impl BgpItemLong<BgpAddrL2> for BgpAddrL2 {
     }
     fn pack_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
         if buf.len() < 15 {
-            return Err(BgpError::insufficient_buffer_size());
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         self.rd.encode_rd_to(buf)?;
         setn_u16(self.site, &mut buf[8..10]);

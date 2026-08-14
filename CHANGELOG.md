@@ -1,3 +1,6 @@
+### 0.4.0 (2026-08-14)
+Errors improved. OTC path attribute added, aspath parse&fisplay improved etc.
+
 ### 0.3.9 (2025-11-06)
 RD parsing, printing, creating was improved.
 

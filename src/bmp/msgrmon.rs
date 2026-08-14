@@ -25,7 +25,7 @@ pub struct BmpMessageRouteMonitoring {
 impl BmpMessageRouteMonitoring {
     pub fn decode_from(buf: &[u8]) -> Result<(BmpMessageRouteMonitoring, usize), BgpError> {
         if buf.len() < 62 {
-            return Err(BgpError::InsufficientBufferSize);
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let pm = BmpMessagePeerHeader::decode_from(buf)?;
         let mut pos = pm.1;
@@ -51,7 +51,7 @@ impl BmpMessageRouteMonitoring {
     pub fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError> {
         let mut curpos: usize = 0;
         if buf.len() < 62 {
-            return Err(BgpError::InsufficientBufferSize);
+            return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         curpos += self.peer.encode_to(buf)?;
         let sesspars: &BgpSessionParams = &(&self.peer).into();
