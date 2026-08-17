@@ -265,7 +265,7 @@ mod tests {
         let truncate_amount = 3;
         buf.truncate(encode.unwrap() - truncate_amount as usize);
         let decode = msg.decode_from(&params, &buf);
-        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize(file!(), line!()))));
+        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize(_, _))));
     }
 
     #[test]
@@ -324,7 +324,7 @@ mod tests {
 
         let mut decode_msg = BgpOpenMessage::new();
         let decode = decode_msg.decode_from(&params, &buf);
-        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize(file!(), line!()))));
+        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize(_, _))));
     }
 
     #[test]
@@ -385,7 +385,7 @@ mod tests {
         };
 
         let encode = msg.encode_to(&params, &mut buf);
-        assert!(matches!(encode, Err(BgpError::InsufficientBufferSize(file!(), line!()))));
+        assert!(matches!(encode, Err(BgpError::InsufficientBufferSize(_, _))));
     }
 
     #[test]
@@ -412,6 +412,6 @@ mod tests {
         };
 
         let encode = msg.encode_to(&params, &mut buf);
-        assert!(matches!(encode, Err(BgpError::InsufficientBufferSize(file!(), line!()))));
+        assert!(matches!(encode, Err(BgpError::InsufficientBufferSize(_, _))));
     }
 }
