@@ -101,8 +101,8 @@ impl BgpMPUpdates {
             2 => {
                 //ipv6
                 match safi {
-                    1 | 2 | 4 | 66 => {
-                        //unicast|multicast|labeled unicast|mdt
+                    1 | 2 | 4 | 66 | 133 => {
+                        //unicast|multicast|labeled unicast|mdt|flow
                         nh = if nhlen == 0 {
                             BgpAddr::None
                         } else {
@@ -110,8 +110,8 @@ impl BgpMPUpdates {
                         };
                         curpos += nhlen;
                     }
-                    128 | 129 => {
-                        //vpnv6u|vpnv6m
+                    128 | 129 | 134 => {
+                        //vpnv6u|vpnv6m|flow
                         let r = BgpIPv6RD::decode_from(peer.peer_mode, &buf[curpos..])?;
                         nh = BgpAddr::V6RD(r.0);
                         curpos += r.1;

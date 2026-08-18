@@ -1,3 +1,6 @@
+### 0.4.1 (2026-08-18)
+Fixed ipv6 flowspec parse.
+
 ### 0.4.0 (2026-08-14)
 Errors improved. OTC path attribute added, aspath parse&fisplay improved etc.
 

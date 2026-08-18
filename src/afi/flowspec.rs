@@ -54,6 +54,11 @@ impl FS6 {
         }
     }
 }
+impl std::convert::From<BgpAddrV6> for FS6 {
+    fn from(ipv6: BgpAddrV6) -> FS6 {
+        FS6 {ipv6, offset: 0}
+    }
+}
 impl FSItem<FS6> for FS6 {
     fn decode_from_fs(buf: &[u8]) -> Result<(FS6, usize), BgpError> {
         let v6 = BgpAddrV6::from_bits(buf[0], &buf[2..])?;
@@ -78,7 +83,15 @@ impl FSItem<FS6> for FS6 {
         2 + (((self.ipv6.prefixlen as usize) + 7) / 8)
     }
 }
-
+impl std::fmt::Display for FS6 {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.ipv6.fmt(f)?;
+        if self.offset!=0 {
+            write!(f,"(offset={})",self.offset)?;
+        }
+        Ok(())
+    }
+}
 /// FlowSpec NLRI vpnv4 unicast
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg(feature = "serialization")]
