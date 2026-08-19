@@ -47,10 +47,10 @@ pub trait BgpItemLong<T: std::marker::Sized> {
     }
 }
 
-#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Default)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub enum BgpAddr {
+    #[default]
     None,
     V4(std::net::Ipv4Addr),
     V6(std::net::Ipv6Addr),
@@ -59,47 +59,24 @@ pub enum BgpAddr {
     L2(BgpL2),
     MVPN(BgpMVPN),
 }
-impl std::default::Default for BgpAddr {
-    fn default() -> Self {
-        BgpAddr::None
-    }
-}
 impl BgpAddr {
     pub fn is_none(&self) -> bool {
-        match self {
-            BgpAddr::None => true,
-            _ => false
-        }
+        matches!(self, BgpAddr::None)
     }
     pub fn is_v4(&self) -> bool {
-        match self {
-            BgpAddr::V4(_) => true,
-            _ => false
-        }
+        matches!(self, BgpAddr::V4(_))
     }
     pub fn is_v6(&self) -> bool {
-        match self {
-            BgpAddr::V6(_) => true,
-            _ => false
-        }
+        matches!(self, BgpAddr::V6(_))
     }
     pub fn is_v4rd(&self) -> bool {
-        match self {
-            BgpAddr::V4RD(_) => true,
-            _ => false
-        }
+        matches!(self, BgpAddr::V4RD(_))
     }
     pub fn is_v6rd(&self) -> bool {
-        match self {
-            BgpAddr::V6RD(_) => true,
-            _ => false
-        }
+        matches!(self, BgpAddr::V6RD(_))
     }
     pub fn is_l2(&self) -> bool {
-        match self {
-            BgpAddr::L2(_) => true,
-            _ => false
-        }
+        matches!(self, BgpAddr::L2(_))
     }
 }
 impl std::fmt::Display for BgpAddr {
@@ -212,8 +189,7 @@ impl<'de> serde::Deserialize<'de> for BgpNet {
 
 /// Represents variance of NLRI collections
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub enum BgpAddrs {
     None,
     IPV4U(Vec<BgpAddrV4>),
@@ -353,8 +329,7 @@ pub fn encode_pathid_bgpitems_to<T: BgpItem<T> + Clone + PartialEq + Eq + Partia
 }
 /// BGP VPN route distinguisher
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpRD {
     /// high-order part
     pub rdh: u32,
@@ -445,7 +420,7 @@ impl BgpRD {
         }
     }
     pub fn to_u64(&self) -> u64 {
-        ((self.rdh as u64) << 32)|(self.rdl as u64)
+        ((self.rdh as u64) << 32) | (self.rdl as u64)
     }
 }
 impl std::str::FromStr for BgpRD {
@@ -514,9 +489,8 @@ impl std::fmt::Display for BgpRD {
 }
 /// MPLS labels as NLRI component
 #[derive(Debug, Clone)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct MplsLabels {
     pub labels: Vec<u32>,
 }
@@ -542,7 +516,7 @@ impl Hash for MplsLabels {
 }
 impl PartialOrd for MplsLabels {
     fn partial_cmp(&self, _other: &Self) -> Option<std::cmp::Ordering> {
-        None //labels does not produce unique FEC
+        Some(self.cmp(_other)) //labels does not produce unique FEC
     }
 }
 impl Ord for MplsLabels {
@@ -573,14 +547,14 @@ impl std::fmt::Display for MplsLabels {
 
 impl BgpItem<MplsLabels> for MplsLabels {
     fn extract_bits_from(bits: u8, buf: &[u8]) -> Result<(MplsLabels, usize), BgpError> {
-        if buf.len()<3 {
+        if buf.len() < 3 {
             return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let mut lbls = Vec::<u32>::new();
         let mut curpos: usize = 0;
         let mut leftbits = bits;
         while leftbits > 0 {
-            if buf.len()<(curpos+3) {
+            if buf.len() < (curpos + 3) {
                 return Err(BgpError::InsufficientBufferSize(file!(), line!()));
             }
             let labelval = (buf[curpos] as u32) << 12
@@ -607,7 +581,7 @@ impl BgpItem<MplsLabels> for MplsLabels {
         if self.labels.is_empty() {
             return Ok((0, 0));
         }
-        if buf.len()<(self.labels.len()*4) {
+        if buf.len() < (self.labels.len() * 4) {
             return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let mut curpos: usize = 0;

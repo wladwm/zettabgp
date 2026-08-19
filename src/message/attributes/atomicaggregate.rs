@@ -14,9 +14,8 @@ use serde::{Deserialize, Serialize};
 
 /// BGP Atmic aggregate path attribute
 #[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpAtomicAggregate {
     pub value: std::net::IpAddr,
 }

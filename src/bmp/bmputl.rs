@@ -106,42 +106,7 @@ impl BmpMessagePeerHeader {
 }
 impl PartialOrd for BmpMessagePeerHeader {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        if let Some(pc) = self.peertype.partial_cmp(&other.peertype) {
-            match pc {
-                Ordering::Less => return Some(Ordering::Less),
-                Ordering::Greater => return Some(Ordering::Greater),
-                Ordering::Equal => {}
-            }
-        };
-        if let Some(pc) = self.flags.partial_cmp(&other.flags) {
-            match pc {
-                Ordering::Less => return Some(Ordering::Less),
-                Ordering::Greater => return Some(Ordering::Greater),
-                Ordering::Equal => {}
-            }
-        };
-        if let Some(pc) = self.peerdistinguisher.partial_cmp(&other.peerdistinguisher) {
-            match pc {
-                Ordering::Less => return Some(Ordering::Less),
-                Ordering::Greater => return Some(Ordering::Greater),
-                Ordering::Equal => {}
-            }
-        };
-        if let Some(pc) = self.peeraddress.partial_cmp(&other.peeraddress) {
-            match pc {
-                Ordering::Less => return Some(Ordering::Less),
-                Ordering::Greater => return Some(Ordering::Greater),
-                Ordering::Equal => {}
-            }
-        };
-        if let Some(pc) = self.asnum.partial_cmp(&other.asnum) {
-            match pc {
-                Ordering::Less => return Some(Ordering::Less),
-                Ordering::Greater => return Some(Ordering::Greater),
-                Ordering::Equal => {}
-            }
-        };
-        self.routerid.partial_cmp(&other.routerid)
+        Some(self.cmp(other))
     }
 }
 impl Ord for BmpMessagePeerHeader {

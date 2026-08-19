@@ -22,8 +22,8 @@ pub mod multiproto;
 pub mod nexthop;
 pub mod origin;
 pub mod originatorid;
-pub mod pmsitunnelattr;
 pub mod otc;
+pub mod pmsitunnelattr;
 pub mod unknown;
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
@@ -42,14 +42,13 @@ use multiproto::{BgpMPUpdates, BgpMPWithdraws};
 use nexthop::BgpNextHop;
 use origin::BgpOrigin;
 use originatorid::BgpOriginatorID;
-use pmsitunnelattr::BgpPMSITunnel;
 use otc::BgpOTC;
+use pmsitunnelattr::BgpPMSITunnel;
 use unknown::BgpAttrUnknown;
 
 /// BGP path attribute mandatory parameters - typecode and flags
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpAttrParams {
     pub typecode: u8,
     pub flags: u8,
@@ -62,8 +61,7 @@ pub trait BgpAttr: std::fmt::Display + std::fmt::Debug {
 
 /// BGP path attribute
 #[derive(Clone, Debug, Hash, PartialOrd, Ord, PartialEq, Eq)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub enum BgpAttrItem {
     Origin(BgpOrigin),
     ASPath(BgpASpath),
@@ -140,9 +138,7 @@ impl BgpAttrItem {
                     &buf[0..attrlen],
                 )?))
             }
-            35 => Ok(BgpAttrItem::OTC(
-                BgpOTC::decode_from(peer,buf)?,
-            )),
+            35 => Ok(BgpAttrItem::OTC(BgpOTC::decode_from(peer, buf)?)),
             128 => Ok(BgpAttrItem::AttrSet(BgpAttrSet::decode_from(peer, buf)?)),
             _ => {
                 log::trace!(

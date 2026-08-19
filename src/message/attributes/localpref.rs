@@ -14,9 +14,8 @@ use serde::{Deserialize, Serialize};
 
 /// BGP local preference path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpLocalpref {
     pub value: u32,
 }

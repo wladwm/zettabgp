@@ -14,8 +14,7 @@ use serde::{Deserialize, Serialize};
 
 /// BGP origin value
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub enum BgpAttrOrigin {
     Igp,
     Egp,
@@ -33,9 +32,8 @@ impl std::fmt::Display for BgpAttrOrigin {
 
 /// BGP origin path attribute
 #[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpOrigin {
     pub value: BgpAttrOrigin,
 }

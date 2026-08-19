@@ -14,8 +14,7 @@ use serde::{Deserialize, Serialize};
 
 /// BGP extended community - element for BgpExtCommunityList path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpExtCommunity {
     pub ctype: u8,
     pub subtype: u8,
@@ -24,7 +23,7 @@ pub struct BgpExtCommunity {
 }
 impl BgpExtCommunity {
     /// creates extcommunity
-    pub fn new(ctype: u8,subtype: u8,a: u16,b: u32) -> BgpExtCommunity {
+    pub fn new(ctype: u8, subtype: u8, a: u16, b: u32) -> BgpExtCommunity {
         BgpExtCommunity {
             ctype,
             subtype,
@@ -187,9 +186,8 @@ impl std::convert::From<u64> for BgpExtCommunity {
 
 /// BGP extended community list path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpExtCommunityList {
     pub value: std::collections::BTreeSet<BgpExtCommunity>,
 }

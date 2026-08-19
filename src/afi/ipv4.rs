@@ -16,8 +16,7 @@ use std::net::Ipv4Addr;
 
 /// ipv4 prefix unicast/multicast NLRI
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpAddrV4 {
     /// network prefix
     pub addr: Ipv4Addr,
@@ -201,8 +200,7 @@ impl std::fmt::Display for BgpAddrV4 {
     }
 }
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpIPv4RD {
     pub rd: BgpRD,
     pub addr: std::net::Ipv4Addr,

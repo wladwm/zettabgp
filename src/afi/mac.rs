@@ -14,9 +14,8 @@ use serde::{Deserialize, Serialize};
 
 /// Six-byte ethernet mac address. Used in EVPN.
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct MacAddress {
     pub mac_address: [u8; 6],
 }

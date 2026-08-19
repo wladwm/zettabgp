@@ -14,8 +14,7 @@ use serde::{Deserialize, Serialize};
 
 /// Unsupported BGP path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpAttrUnknown {
     /// PA typecode&flags
     pub params: BgpAttrParams,

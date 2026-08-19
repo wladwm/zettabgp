@@ -14,8 +14,7 @@ use serde::{Deserialize, Serialize};
 
 /// BGP VPLS NLRI
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpAddrL2 {
     pub rd: BgpRD,
     pub site: u16,
@@ -63,8 +62,7 @@ impl std::fmt::Display for BgpAddrL2 {
     }
 }
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpL2 {
     pub rd: BgpRD,
     pub site: u16,
