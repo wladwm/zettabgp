@@ -131,7 +131,7 @@ pub trait BgpAddrItem<T: std::marker::Sized> {
 }
 
 /// BGP capability GR
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BgpCapGR {
     pub afi: u16,
     pub safi: u8,
@@ -383,9 +383,7 @@ impl BgpCapability {
             BgpCapability::CapAddPath(v) => 2 + v.len() * 4,
             BgpCapability::CapEnhancedRR => 2,
             BgpCapability::CapLLGR(v) => 2 + v.len() * 7,
-            BgpCapability::CapFQDN(hostname, domainname) => {
-                4 + hostname.as_bytes().len() + domainname.as_bytes().len()
-            }
+            BgpCapability::CapFQDN(hostname, domainname) => 4 + hostname.len() + domainname.len(),
             BgpCapability::CapBFD => 2,
         }
     }
@@ -502,13 +500,13 @@ impl BgpCapability {
             }
             BgpCapability::CapFQDN(hostname, domainname) => {
                 buf[0] = 73;
-                buf[1] = hostname.as_bytes().len() as u8;
+                buf[1] = hostname.len() as u8;
                 let mut pos = 1;
-                buf[pos..pos + hostname.as_bytes().len()].copy_from_slice(hostname.as_bytes());
-                pos += hostname.as_bytes().len();
-                buf[pos] = domainname.as_bytes().len() as u8;
+                buf[pos..pos + hostname.len()].copy_from_slice(hostname.as_bytes());
+                pos += hostname.len();
+                buf[pos] = domainname.len() as u8;
                 pos += 1;
-                buf[pos..pos + domainname.as_bytes().len()].copy_from_slice(domainname.as_bytes());
+                buf[pos..pos + domainname.len()].copy_from_slice(domainname.as_bytes());
             }
             BgpCapability::CapBFD => {
                 buf.clone_from_slice(&[74, 0]);
@@ -552,7 +550,7 @@ impl BgpCapability {
                 BgpCapability::CapRR
             }
             64 => {
-                if data.len() < 2 || (data.len() - 2) % 4 != 0 {
+                if data.len() < 2 || (data.len() - 2).is_multiple_of(4) {
                     return Err(BgpError::static_str("Invalid GR capability"));
                 }
                 let restart_state = data[0] & 128 != 0;
@@ -594,7 +592,7 @@ impl BgpCapability {
                 BgpCapability::CapEnhancedRR
             }
             71 => {
-                if data.len() % 7 != 0 {
+                if data.len().is_multiple_of(7) {
                     return Err(BgpError::static_str("Invalid LLGR capability"));
                 }
                 let mut v = Vec::new();
@@ -770,8 +768,8 @@ impl BgpSessionParams {
                     }
                 }
                 _ => {
-                    if rcaps.iter().any(|q| *q == *x) {
-                        Some((*x).clone())
+                    if rcaps.contains(x) {
+                        Some(x.clone())
                     } else {
                         None
                     }

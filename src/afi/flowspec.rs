@@ -40,8 +40,7 @@ impl FSItem<BgpAddrV4> for BgpAddrV4 {
 
 /// FlowSpec NLRI ipv6 unicast
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct FS6 {
     pub ipv6: BgpAddrV6,
     pub offset: u8,
@@ -56,7 +55,7 @@ impl FS6 {
 }
 impl std::convert::From<BgpAddrV6> for FS6 {
     fn from(ipv6: BgpAddrV6) -> FS6 {
-        FS6 {ipv6, offset: 0}
+        FS6 { ipv6, offset: 0 }
     }
 }
 impl FSItem<FS6> for FS6 {
@@ -86,17 +85,16 @@ impl FSItem<FS6> for FS6 {
 impl std::fmt::Display for FS6 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.ipv6.fmt(f)?;
-        if self.offset!=0 {
-            write!(f,"(offset={})",self.offset)?;
+        if self.offset != 0 {
+            write!(f, "(offset={})", self.offset)?;
         }
         Ok(())
     }
 }
 /// FlowSpec NLRI vpnv4 unicast
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct FSV4U {
     pub prefix: WithRd<BgpAddrV4>,
 }
@@ -136,8 +134,7 @@ pub trait FSOperItem: Clone + PartialEq + Eq + PartialOrd + Ord {
     fn decode_from(buf: &[u8]) -> Result<(Self, usize), BgpError>;
 }
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct FSOperValItem {
     pub and_bit: bool,
     pub lt_cmp: bool,
@@ -258,7 +255,7 @@ impl<T: FSOperItem> FSOperVec<T> {
     pub fn push(&mut self, i: T) {
         self.items.push(i)
     }
-    pub fn iter<'s>(&'s self) -> std::slice::Iter<'s,T> {
+    pub fn iter<'s>(&'s self) -> std::slice::Iter<'s, T> {
         self.items.iter()
     }
     fn getbyteslen(&self) -> usize {
@@ -325,8 +322,7 @@ impl<'de, T: FSOperItem + de::Deserialize<'de>> de::Deserialize<'de> for FSOperV
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct FSOperMaskItem {
     pub and_bit: bool,
     pub bit_not: bool,
@@ -451,19 +447,19 @@ impl<T: FSItem<T> + std::fmt::Display> std::fmt::Display for BgpFlowSpecItem<T> 
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         use BgpFlowSpecItem::*;
         match self {
-        PrefixDst(v)=> write!(f,"dst {}",v),
-        PrefixSrc(v) => write!(f,"src {}",v),
-        Proto(v) => write!(f,"proto {}",v),
-        PortAny(v) => write!(f,"port {}",v),
-        PortDst(v) => write!(f,"portdst {}",v),
-        PortSrc(v) => write!(f,"portsrc {}",v),
-        IcmpType(v) => write!(f,"icmptype {}",v),
-        IcmpCode(v) => write!(f,"icmpcode {}",v),
-        TcpFlags(v) => write!(f,"tcpflags {}",v),
-        PacketLength(v) => write!(f,"len {}",v),
-        Dscp(v) => write!(f,"dscp {}",v),
-        Fragment(v) => write!(f,"frag {}",v),
-        FlowLabel(v) => write!(f,"flowlabel {}",v),
+            PrefixDst(v) => write!(f, "dst {}", v),
+            PrefixSrc(v) => write!(f, "src {}", v),
+            Proto(v) => write!(f, "proto {}", v),
+            PortAny(v) => write!(f, "port {}", v),
+            PortDst(v) => write!(f, "portdst {}", v),
+            PortSrc(v) => write!(f, "portsrc {}", v),
+            IcmpType(v) => write!(f, "icmptype {}", v),
+            IcmpCode(v) => write!(f, "icmpcode {}", v),
+            TcpFlags(v) => write!(f, "tcpflags {}", v),
+            PacketLength(v) => write!(f, "len {}", v),
+            Dscp(v) => write!(f, "dscp {}", v),
+            Fragment(v) => write!(f, "frag {}", v),
+            FlowLabel(v) => write!(f, "flowlabel {}", v),
         }
     }
 }
@@ -664,7 +660,7 @@ impl<T: FSItem<T>> BgpAddrItem<BgpFlowSpec<T>> for BgpFlowSpec<T> {
             return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         setn_u16(pos as u16, buf);
-        buf[0] = buf[0] | 0xf0;
+        buf[0] |= 0xf0;
         Ok(pos)
     }
 }

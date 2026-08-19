@@ -15,8 +15,7 @@ use serde::{Deserialize, Serialize};
 /// BGP MVPN type 1 - Intra AS I-PMSI AD
 /// for example 1:10.255.170.100:1:10.255.170.100
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpMVPN1 {
     pub rd: BgpRD,
     pub originator: std::net::IpAddr,
@@ -58,8 +57,7 @@ impl BgpAddrItem<BgpMVPN1> for BgpMVPN1 {
 /// BGP MVPN type 2 - Inter AS I-PMSI AD
 /// for example 2:10.255.170.100:1:65000
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpMVPN2 {
     pub rd: BgpRD,
     pub asn: u32,
@@ -92,8 +90,7 @@ impl BgpAddrItem<BgpMVPN2> for BgpMVPN2 {
 /// BGP MVPN type 3 - S-PMSI AD
 /// for example 3:10.255.170.100:1:32:192.168.194.2:32:224.1.2.3:10.255.170.100
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpMVPN3 {
     pub rd: BgpRD,
     pub source: std::net::IpAddr,
@@ -156,8 +153,7 @@ impl BgpAddrItem<BgpMVPN3> for BgpMVPN3 {
 /// BGP MVPN type 4 - Leaf AD
 /// for example 4:3:10.255.170.100:1:32:192.168.194.2:32:224.1.2.3:10.255.170.100:10.255.170.98
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpMVPN4 {
     pub spmsi: BgpMVPN3,
     pub originator: std::net::IpAddr,
@@ -198,8 +194,7 @@ impl BgpAddrItem<BgpMVPN4> for BgpMVPN4 {
 /// BGP MVPN type 5 - Source Active AD
 /// for example 5:10.255.170.100:1:32:192.168.194.2:32:224.1.2.3
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpMVPN5 {
     pub rd: BgpRD,
     pub source: std::net::IpAddr,
@@ -252,8 +247,7 @@ impl BgpAddrItem<BgpMVPN5> for BgpMVPN5 {
 /// for example 6:10.255.170.100:1:65000:32:10.12.53.12:32:224.1.2.3
 ///   7:10.255.170.100:1:65000:32:192.168.194.2:32:224.1.2.3
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpMVPN67 {
     pub rd: BgpRD,
     pub asn: u32,
@@ -309,8 +303,7 @@ impl BgpAddrItem<BgpMVPN67> for BgpMVPN67 {
 }
 // BGP Multicast VPN NLRI
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub enum BgpMVPN {
     T1(BgpMVPN1),  //Intra AS I-PMSI AD  1:10.255.170.100:1:10.255.170.100
     T2(BgpMVPN2),  //Inter AS I-PMSI AD  2:10.255.170.100:1:65000

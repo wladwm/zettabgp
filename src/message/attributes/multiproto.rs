@@ -13,8 +13,7 @@ use serde::{Deserialize, Serialize};
 
 /// BGP multiprotocol updates
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpMPUpdates {
     /// next hop for this updates
     pub nexthop: BgpAddr,
@@ -201,8 +200,7 @@ impl BgpAttr for BgpMPUpdates {
 
 /// BGP multiprotocol withdraws
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpMPWithdraws {
     /// NLRI
     pub addrs: BgpAddrs,

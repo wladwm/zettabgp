@@ -14,8 +14,7 @@ use crate::message::attributes::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpPMSITaRSVP {
     pub ext_tunnel_id: std::net::Ipv4Addr,
     pub reserved: u16,
@@ -32,9 +31,8 @@ impl std::fmt::Display for BgpPMSITaRSVP {
     }
 }
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpPMSITaIngressRepl {
     pub endpoint: std::net::Ipv4Addr,
 }
@@ -44,8 +42,7 @@ impl std::fmt::Display for BgpPMSITaIngressRepl {
     }
 }
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpPMSITaMLDP {
     pub rootnode: std::net::IpAddr,
     pub opaque: Vec<u8>,
@@ -57,8 +54,7 @@ impl std::fmt::Display for BgpPMSITaMLDP {
 }
 /// PMSI tunnel attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub enum BgpPMSITunnelAttr {
     None,
     RSVPTe(BgpPMSITaRSVP),
@@ -78,8 +74,7 @@ impl std::fmt::Display for BgpPMSITunnelAttr {
 
 /// BGP Path attribute for PMSI tunnel RFC6514
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpPMSITunnel {
     pub flags: u8,
     pub tunnel_type: u8,

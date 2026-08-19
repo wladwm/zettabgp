@@ -14,9 +14,8 @@ use serde::{Deserialize, Serialize};
 
 /// BGP nexthop
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpNextHop {
     /// next hop itself
     pub value: std::net::IpAddr,

@@ -16,8 +16,7 @@ use serde::{Deserialize, Serialize};
 
 /// BGP attribute set path attribute struct
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpAttrSet {
     /// Originating autonomous system number
     pub asn: u32,

@@ -24,25 +24,22 @@ pub const NOPEER: BgpCommunity = BgpCommunity { value: 0xffffff04 };
 
 /// BGP community - element for BgpCommunityList path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpCommunity {
     pub value: u32,
 }
 /// BGP community list path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpCommunityList {
     pub value: std::collections::BTreeSet<BgpCommunity>,
 }
 
 /// BGP large community - element for BgpLargeCommunityList path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpLargeCommunity {
     pub ga: u32,
     pub ldp1: u32,
@@ -50,9 +47,8 @@ pub struct BgpLargeCommunity {
 }
 /// BGP <large> community list path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpLargeCommunityList {
     pub value: std::collections::BTreeSet<BgpLargeCommunity>,
 }
@@ -183,11 +179,11 @@ impl std::fmt::Debug for BgpCommunity {
 }
 impl std::fmt::Display for BgpCommunity {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            &NO_EXPORT => f.write_str(Self::NO_EXPORT_STR0),
-            &NO_ADVERTISE => f.write_str(Self::NO_ADVERTISE_STR0),
-            &NO_EXPORT_SUBCONFED => f.write_str(Self::NO_EXPORT_SUBCONFED_STR),
-            &NOPEER => f.write_str(Self::NOPEER_STR0),
+        match *self {
+            NO_EXPORT => f.write_str(Self::NO_EXPORT_STR0),
+            NO_ADVERTISE => f.write_str(Self::NO_ADVERTISE_STR0),
+            NO_EXPORT_SUBCONFED => f.write_str(Self::NO_EXPORT_SUBCONFED_STR),
+            NOPEER => f.write_str(Self::NOPEER_STR0),
             _ => write!(
                 f,
                 "{}:{}",

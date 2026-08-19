@@ -15,8 +15,7 @@ use std::net::Ipv6Addr;
 
 /// ipv6 prefix unicast/multicast NLRI
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpAddrV6 {
     /// network prefix
     pub addr: Ipv6Addr,
@@ -211,8 +210,7 @@ impl std::fmt::Display for BgpAddrV6 {
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpIPv6RD {
     pub rd: BgpRD,
     pub addr: std::net::Ipv6Addr,

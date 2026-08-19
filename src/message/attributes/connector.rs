@@ -15,8 +15,7 @@ use std::net::Ipv4Addr;
 
 /// BGP local preference path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpConnector {
     pub asn: u32,
     pub addr: Ipv4Addr,

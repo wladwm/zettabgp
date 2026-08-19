@@ -16,8 +16,7 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 /// ipv4 mdt NLRI
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpMdtV4 {
     /// network prefix
     pub addr: BgpAddrV4,
@@ -117,8 +116,7 @@ impl std::fmt::Display for BgpMdtV4 {
 
 /// ipv6 mdt NLRI
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpMdtV6 {
     /// network prefix
     pub addr: BgpAddrV6,
