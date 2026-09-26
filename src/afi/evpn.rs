@@ -16,9 +16,8 @@ use serde::{Deserialize, Serialize};
 
 ///EVPN ESI field
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct EVPNESI {
     pub v: [u8; 9],
 }
@@ -55,8 +54,7 @@ impl std::fmt::Display for EVPNESI {
 }
 //EVPN Ethernet Auto-Discovery (A-D) route
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpEVPN1 {
     pub rd: BgpRD,
     pub esi_type: u8,
@@ -111,8 +109,7 @@ impl std::fmt::Display for BgpEVPN1 {
 
 //EVPN MAC/IP Advertisement Route
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpEVPN2 {
     pub rd: BgpRD,
     pub esi_type: u8,
@@ -228,8 +225,7 @@ impl std::fmt::Display for BgpEVPN2 {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 // EVPN Inclusive Multicast Ethernet Tag route
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpEVPN3 {
     pub rd: BgpRD,
     pub ether_tag: u32,
@@ -294,8 +290,7 @@ impl std::fmt::Display for BgpEVPN3 {
 
 /// EVPN Ethernet Segment Route
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpEVPN4 {
     pub rd: BgpRD,
     pub esi_type: u8,
@@ -369,8 +364,7 @@ impl std::fmt::Display for BgpEVPN4 {
 
 /// EVPN Prefix Advertisement Route
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpEVPN5 {
     pub rd: BgpRD,
     pub esi_type: u8,
@@ -471,8 +465,7 @@ impl std::fmt::Display for BgpEVPN5 {
 
 /// EVPN route NLRI
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub enum BgpEVPN {
     EVPN1(BgpEVPN1),
     EVPN2(BgpEVPN2),

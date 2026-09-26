@@ -122,7 +122,11 @@ pub fn slice_mut<T>(buf: &mut [T], start: usize, end: usize) -> Result<&mut [T],
         Err(BgpError::InsufficientBufferSize(file!(), line!()))
     }
 }
-pub(crate) fn fmt_vec<T: std::fmt::Display, C: std::iter::Iterator<Item = T>, S: std::fmt::Display>(
+pub(crate) fn fmt_vec<
+    T: std::fmt::Display,
+    C: std::iter::Iterator<Item = T>,
+    S: std::fmt::Display,
+>(
     v: C,
     sep: S,
     f: &mut std::fmt::Formatter,

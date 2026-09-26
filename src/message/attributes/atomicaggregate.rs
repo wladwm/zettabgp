@@ -14,11 +14,10 @@ use serde::{Deserialize, Serialize};
 
 /// BGP Atmic aggregate path attribute
 #[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpAtomicAggregate {
-    pub value: std::net::IpAddr,
+    pub value: std::net::Ipv4Addr,
 }
 impl BgpAtomicAggregate {
     pub fn decode_from(
@@ -27,9 +26,9 @@ impl BgpAtomicAggregate {
     ) -> Result<BgpAtomicAggregate, BgpError> {
         Ok(BgpAtomicAggregate {
             value: if buf.is_empty() {
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0))
+                std::net::Ipv4Addr::new(0, 0, 0, 0)
             } else {
-                decode_addr_from(buf)?
+                decode_addrv4_from(buf)?
             },
         })
     }
@@ -54,6 +53,6 @@ impl BgpAttr for BgpAtomicAggregate {
         }
     }
     fn encode_to(&self, _peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
-        encode_addr_to(&self.value, buf)
+        encode_addrv4_to(&self.value, buf)
     }
 }

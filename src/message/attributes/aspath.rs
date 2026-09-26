@@ -19,9 +19,8 @@ use std::num::ParseIntError;
 
 /// BGP AS - element of aspath
 #[derive(Clone, Copy, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpAS {
     pub value: u32,
 }
@@ -44,9 +43,11 @@ impl From<u32> for BgpAS {
     }
 }
 impl std::str::FromStr for BgpAS {
-    type Err=ParseIntError;
-    fn from_str(s:&str) -> Result<BgpAS,Self::Err> {
-        Ok(BgpAS{value:u32::from_str(s)?})
+    type Err = ParseIntError;
+    fn from_str(s: &str) -> Result<BgpAS, Self::Err> {
+        Ok(BgpAS {
+            value: u32::from_str(s)?,
+        })
     }
 }
 impl PartialEq for BgpAS {
@@ -81,9 +82,8 @@ impl std::fmt::Display for BgpAS {
 }
 /// BGP AS_SEQUENCE - element of aspath
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpASseq {
     pub value: Vec<BgpAS>,
 }
@@ -91,12 +91,12 @@ impl BgpASseq {
     pub fn len(&self) -> usize {
         self.value.len()
     }
-    pub fn contains(&self, other:&[BgpAS]) -> bool {
+    pub fn contains(&self, other: &[BgpAS]) -> bool {
         if other.len() > self.value.len() {
             return false;
         }
         if other.len() == self.value.len() {
-            return other==self.value;
+            return other == self.value;
         }
         for idx in 0..(self.value.len() - other.len() + 1) {
             if &self.value[idx..(idx + other.len())] == other {
@@ -105,23 +105,23 @@ impl BgpASseq {
         }
         false
     }
-    pub fn starts_with(&self, other:&[BgpAS]) -> bool {
+    pub fn starts_with(&self, other: &[BgpAS]) -> bool {
         if other.len() > self.value.len() {
             return false;
         }
         if other.len() == self.value.len() {
-            return other==self.value;
+            return other == self.value;
         }
         &self.value[0..other.len()] == other
     }
-    pub fn ends_with(&self, other:&[BgpAS]) -> bool {
+    pub fn ends_with(&self, other: &[BgpAS]) -> bool {
         if other.len() > self.value.len() {
             return false;
         }
         if other.len() == self.value.len() {
-            return other==self.value;
+            return other == self.value;
         }
-        &self.value[self.value.len()-other.len()..self.value.len()] == other
+        &self.value[self.value.len() - other.len()..self.value.len()] == other
     }
 }
 impl From<u32> for BgpASseq {
@@ -132,19 +132,19 @@ impl From<u32> for BgpASseq {
     }
 }
 impl std::str::FromStr for BgpASseq {
-    type Err=ParseIntError;
-    fn from_str(s:&str) -> Result<BgpASseq,Self::Err> {
-        let mut value=Vec::new();
-        for cs in s.split(&[',',' ']) {
-            if cs.len()>0 {
+    type Err = ParseIntError;
+    fn from_str(s: &str) -> Result<BgpASseq, Self::Err> {
+        let mut value = Vec::new();
+        for cs in s.split(&[',', ' ']) {
+            if cs.len() > 0 {
                 value.push(cs.parse()?);
             }
         }
-        Ok(BgpASseq{value})
+        Ok(BgpASseq { value })
     }
 }
-impl<A:Into<BgpAS>> std::iter::Extend<A> for BgpASseq {
-    fn extend<T:IntoIterator<Item=A>>(&mut self, iter:T) {
+impl<A: Into<BgpAS>> std::iter::Extend<A> for BgpASseq {
+    fn extend<T: IntoIterator<Item = A>>(&mut self, iter: T) {
         for q in iter.into_iter() {
             self.value.push(q.into());
         }
@@ -152,9 +152,8 @@ impl<A:Into<BgpAS>> std::iter::Extend<A> for BgpASseq {
 }
 /// BGP AS_SET - element of aspath
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpASset {
     pub value: BTreeSet<BgpAS>,
 }
@@ -162,7 +161,10 @@ impl BgpASset {
     pub fn len(&self) -> usize {
         self.value.len()
     }
-    pub fn contains_all<A:std::borrow::Borrow<BgpAS>,I:Iterator<Item=A>>(&self, other:I) -> bool {
+    pub fn contains_all<A: std::borrow::Borrow<BgpAS>, I: Iterator<Item = A>>(
+        &self,
+        other: I,
+    ) -> bool {
         for n in other {
             if !self.value.contains(n.borrow()) {
                 return false;
@@ -170,7 +172,10 @@ impl BgpASset {
         }
         true
     }
-    pub fn contains_any<A:std::borrow::Borrow<BgpAS>,I:Iterator<Item=A>>(&self, other:I) -> bool {
+    pub fn contains_any<A: std::borrow::Borrow<BgpAS>, I: Iterator<Item = A>>(
+        &self,
+        other: I,
+    ) -> bool {
         for n in other {
             if self.value.contains(n.borrow()) {
                 return true;
@@ -179,29 +184,28 @@ impl BgpASset {
         false
     }
 }
-impl<A:Into<BgpAS>> std::iter::Extend<A> for BgpASset {
-    fn extend<T:IntoIterator<Item=A>>(&mut self, iter:T) {
+impl<A: Into<BgpAS>> std::iter::Extend<A> for BgpASset {
+    fn extend<T: IntoIterator<Item = A>>(&mut self, iter: T) {
         for q in iter.into_iter() {
             self.value.insert(q.into());
         }
     }
 }
 impl std::str::FromStr for BgpASset {
-    type Err=ParseIntError;
-    fn from_str(s:&str) -> Result<BgpASset,Self::Err> {
-        let mut value=BTreeSet::new();
-        for cs in s.split(&[',',' ']) {
-            if cs.len()>0 {
+    type Err = ParseIntError;
+    fn from_str(s: &str) -> Result<BgpASset, Self::Err> {
+        let mut value = BTreeSet::new();
+        for cs in s.split(&[',', ' ']) {
+            if cs.len() > 0 {
                 value.insert(cs.parse()?);
             }
         }
-        Ok(BgpASset{value})
+        Ok(BgpASset { value })
     }
 }
 /// BGP as path item - common element of aspath
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub enum BgpASitem {
     Seq(BgpASseq),
     Set(BgpASset),
@@ -222,10 +226,10 @@ impl From<BgpASset> for BgpASitem {
     }
 }
 impl std::str::FromStr for BgpASitem {
-    type Err=ParseIntError;
-    fn from_str(s:&str) -> Result<BgpASitem,Self::Err> {
+    type Err = ParseIntError;
+    fn from_str(s: &str) -> Result<BgpASitem, Self::Err> {
         if s.starts_with('{') && s.ends_with('}') {
-            Ok(BgpASitem::Set(s[1..(s.len()-1)].parse()?))
+            Ok(BgpASitem::Set(s[1..(s.len() - 1)].parse()?))
         } else {
             Ok(BgpASitem::Seq(s.parse()?))
         }
@@ -241,55 +245,43 @@ impl BgpASitem {
     pub fn is_seq(&self) -> bool {
         match self {
             BgpASitem::Seq(_) => true,
-            _ => false
+            _ => false,
         }
     }
-    pub fn contains(&self, other:&BgpASitem) -> bool {
+    pub fn contains(&self, other: &BgpASitem) -> bool {
         match self {
-            BgpASitem::Seq(ref s) => {
-                match other {
-                    BgpASitem::Seq(ref o) => s.contains(&o.value),
-                    BgpASitem::Set(_) => false
-                }
-            }
-            BgpASitem::Set(ref s) => {
-                match other {
-                    BgpASitem::Seq(ref o) => s.contains_any(o.value.iter()),
-                    BgpASitem::Set(ref o) => s.contains_any(o.value.iter())
-                }
-            }
+            BgpASitem::Seq(ref s) => match other {
+                BgpASitem::Seq(ref o) => s.contains(&o.value),
+                BgpASitem::Set(_) => false,
+            },
+            BgpASitem::Set(ref s) => match other {
+                BgpASitem::Seq(ref o) => s.contains_any(o.value.iter()),
+                BgpASitem::Set(ref o) => s.contains_any(o.value.iter()),
+            },
         }
     }
-    pub fn starts_with(&self, other:&BgpASitem) -> bool {
+    pub fn starts_with(&self, other: &BgpASitem) -> bool {
         match self {
-            BgpASitem::Seq(ref s) => {
-                match other {
-                    BgpASitem::Seq(ref o) => s.starts_with(&o.value),
-                    BgpASitem::Set(_) => false
-                }
-            }
-            BgpASitem::Set(ref s) => {
-                match other {
-                    BgpASitem::Seq(ref o) => s.contains_all(o.value.iter()),
-                    BgpASitem::Set(ref o) => s.contains_all(o.value.iter())
-                }
-            }
+            BgpASitem::Seq(ref s) => match other {
+                BgpASitem::Seq(ref o) => s.starts_with(&o.value),
+                BgpASitem::Set(_) => false,
+            },
+            BgpASitem::Set(ref s) => match other {
+                BgpASitem::Seq(ref o) => s.contains_all(o.value.iter()),
+                BgpASitem::Set(ref o) => s.contains_all(o.value.iter()),
+            },
         }
     }
-    pub fn ends_with(&self, other:&BgpASitem) -> bool {
+    pub fn ends_with(&self, other: &BgpASitem) -> bool {
         match self {
-            BgpASitem::Seq(ref s) => {
-                match other {
-                    BgpASitem::Seq(ref o) => s.ends_with(&o.value),
-                    BgpASitem::Set(_) => false
-                }
-            }
-            BgpASitem::Set(ref s) => {
-                match other {
-                    BgpASitem::Seq(ref o) => s.contains_all(o.value.iter()),
-                    BgpASitem::Set(ref o) => s.contains_all(o.value.iter())
-                }
-            }
+            BgpASitem::Seq(ref s) => match other {
+                BgpASitem::Seq(ref o) => s.ends_with(&o.value),
+                BgpASitem::Set(_) => false,
+            },
+            BgpASitem::Set(ref s) => match other {
+                BgpASitem::Seq(ref o) => s.contains_all(o.value.iter()),
+                BgpASitem::Set(ref o) => s.contains_all(o.value.iter()),
+            },
         }
     }
     pub fn encode_to(&self, peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError> {
@@ -388,9 +380,8 @@ impl std::fmt::Display for BgpASitem {
 }
 /// BGP as-path path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpASpath {
     pub value: Vec<BgpASitem>,
 }
@@ -403,48 +394,51 @@ where
     fn from(v: T) -> Self {
         BgpASpath {
             value: v.into_iter().map(|q| q.into()).collect(),
-        }.flatten()
+        }
+        .flatten()
     }
 }
 impl std::str::FromStr for BgpASpath {
-    type Err=ParseIntError;
-    fn from_str(s:&str) -> Result<BgpASpath,Self::Err> {
+    type Err = ParseIntError;
+    fn from_str(s: &str) -> Result<BgpASpath, Self::Err> {
         if s.contains('{') {
-            let bs=s.as_bytes();
+            let bs = s.as_bytes();
             let mut pcb = 0usize;
-            let mut i=0usize;
+            let mut i = 0usize;
             let mut mode = 0u8;
-            let mut value=Vec::new();
-            while i<bs.len() {
+            let mut value = Vec::new();
+            while i < bs.len() {
                 match mode {
                     0 => {
-                        if bs[i]==b'{' {
+                        if bs[i] == b'{' {
                             value.push(String::from_utf8_lossy(&bs[pcb..i]).parse()?);
-                            mode=1;
-                            pcb=i;
-                            i+=1;
+                            mode = 1;
+                            pcb = i;
+                            i += 1;
                             continue;
                         }
-                    },
+                    }
                     1 => {
-                        if bs[i]==b'}' {
+                        if bs[i] == b'}' {
                             value.push(String::from_utf8_lossy(&bs[pcb..=i]).parse()?);
-                            mode=0;
-                            i+=1;
-                            pcb=i;
+                            mode = 0;
+                            i += 1;
+                            pcb = i;
                             continue;
                         }
                     }
                     _ => {}
                 }
-                i+=1;
+                i += 1;
             }
-            if pcb<i {
+            if pcb < i {
                 value.push(String::from_utf8_lossy(&bs[pcb..i]).parse()?);
             }
-            Ok(BgpASpath{value}.flatten())
+            Ok(BgpASpath { value }.flatten())
         } else {
-            Ok(BgpASpath{value:vec![s.parse()?]})
+            Ok(BgpASpath {
+                value: vec![s.parse()?],
+            })
         }
     }
 }
@@ -468,64 +462,86 @@ impl BgpASpath {
         }
         Ok(BgpASpath { value: v })
     }
-    pub fn contains(&self, other:&BgpASpath) -> bool {
+    pub fn contains(&self, other: &BgpASpath) -> bool {
         if other.value.len() > self.value.len() {
             return false;
         }
         if other.value.len() == self.value.len() {
-            return self.value.iter().zip(other.value.iter()).all(|(a,b)| a.contains(b));
+            return self
+                .value
+                .iter()
+                .zip(other.value.iter())
+                .all(|(a, b)| a.contains(b));
         }
         for idx in 0..(self.value.len() - other.len() + 1) {
-            if self.value[idx..(idx + other.len())].iter().zip(other.value.iter()).all(|(a,b)| a.contains(b)) {
+            if self.value[idx..(idx + other.len())]
+                .iter()
+                .zip(other.value.iter())
+                .all(|(a, b)| a.contains(b))
+            {
                 return true;
             }
         }
         false
     }
-    pub fn starts_with(&self, other:&BgpASpath) -> bool {
+    pub fn starts_with(&self, other: &BgpASpath) -> bool {
         if other.value.len() > self.value.len() {
             return false;
         }
         if other.value.len() == self.value.len() {
-            return self.value.iter().zip(other.value.iter()).all(|(a,b)| a.starts_with(b));
+            return self
+                .value
+                .iter()
+                .zip(other.value.iter())
+                .all(|(a, b)| a.starts_with(b));
         }
-        return self.value.iter().take(other.len()).zip(other.value.iter()).all(|(a,b)| a.starts_with(b));
+        return self
+            .value
+            .iter()
+            .take(other.len())
+            .zip(other.value.iter())
+            .all(|(a, b)| a.starts_with(b));
     }
-    pub fn ends_with(&self, other:&BgpASpath) -> bool {
+    pub fn ends_with(&self, other: &BgpASpath) -> bool {
         if other.value.len() > self.value.len() {
             return false;
         }
         if other.value.len() == self.value.len() {
-            return self.value.iter().zip(other.value.iter()).all(|(a,b)| a.ends_with(b));
+            return self
+                .value
+                .iter()
+                .zip(other.value.iter())
+                .all(|(a, b)| a.ends_with(b));
         }
-        return self.value[self.value.len()-other.len()..self.value.len()].iter().zip(other.value.iter()).all(|(a,b)| a.ends_with(b));
+        return self.value[self.value.len() - other.len()..self.value.len()]
+            .iter()
+            .zip(other.value.iter())
+            .all(|(a, b)| a.ends_with(b));
     }
     /// concatenate sequental sequences
     pub fn flatten(mut self) -> Self {
         let mut lng = self.value.len();
-        if lng<2 {
+        if lng < 2 {
             return self;
         }
-        let mut i=0usize;
-        while i<(lng-1) {
-            if self.value[i].is_seq() && self.value[i+1].is_seq() {
-                let mut f=self.value.remove(i+1);
-                lng-=1;
+        let mut i = 0usize;
+        while i < (lng - 1) {
+            if self.value[i].is_seq() && self.value[i + 1].is_seq() {
+                let mut f = self.value.remove(i + 1);
+                lng -= 1;
                 match &mut self.value[i] {
                     BgpASitem::Set(_) => panic!(""),
-                    BgpASitem::Seq(s) => {
-                        match &mut f {
-                            BgpASitem::Set(_) => panic!(""),
-                            BgpASitem::Seq(fs) => {
-                                s.value.append(&mut fs.value);
-                            }
+                    BgpASitem::Seq(s) => match &mut f {
+                        BgpASitem::Set(_) => panic!(""),
+                        BgpASitem::Seq(fs) => {
+                            s.value.append(&mut fs.value);
                         }
-                    }
+                    },
                 }
             } else {
-                i+=1;
+                i += 1;
             }
-        };
+        }
         self
     }
 }
@@ -570,36 +586,35 @@ mod tests {
 
     #[test]
     fn test_plain_aspath() {
-        let p1=BgpASpath::from([1,2,3,4]).flatten();
-        assert_eq!(p1.value.len(),1);
-        let p2=BgpASpath::from([1,2,3,4]).flatten();
-        assert_eq!(p1,p2);
-        let p2=BgpASpath::from([1,2,3]).flatten();
-        assert_ne!(p1,p2);
+        let p1 = BgpASpath::from([1, 2, 3, 4]).flatten();
+        assert_eq!(p1.value.len(), 1);
+        let p2 = BgpASpath::from([1, 2, 3, 4]).flatten();
+        assert_eq!(p1, p2);
+        let p2 = BgpASpath::from([1, 2, 3]).flatten();
+        assert_ne!(p1, p2);
     }
     #[test]
     fn test_parse_aspath() {
-        let p1=BgpASpath::from([1,2,3,4]).flatten();
-        assert_eq!(p1.value.len(),1);
-        let p2="1,2,3,4".parse().unwrap();
-        assert_eq!(p1,p2);
+        let p1 = BgpASpath::from([1, 2, 3, 4]).flatten();
+        assert_eq!(p1.value.len(), 1);
+        let p2 = "1,2,3,4".parse().unwrap();
+        assert_eq!(p1, p2);
     }
-   #[test]
+    #[test]
     fn test_aspath_contains() {
-        let p1="1,2,3,4".parse::<BgpASpath>().unwrap();
-        let p2="2,3".parse::<BgpASpath>().unwrap();
+        let p1 = "1,2,3,4".parse::<BgpASpath>().unwrap();
+        let p2 = "2,3".parse::<BgpASpath>().unwrap();
         assert!(p1.contains(&p2));
-        let p3="1,2".parse::<BgpASpath>().unwrap();
+        let p3 = "1,2".parse::<BgpASpath>().unwrap();
         assert!(p1.starts_with(&p3));
     }
-   #[test]
+    #[test]
     fn test_aspath_starts_with() {
-        let p1="1,2,3,4".parse::<BgpASpath>().unwrap();
-        let p2="2,3".parse::<BgpASpath>().unwrap();
+        let p1 = "1,2,3,4".parse::<BgpASpath>().unwrap();
+        let p2 = "2,3".parse::<BgpASpath>().unwrap();
         eprintln!("p1={:?}, p2={:?}", p1, p2);
         assert!(!p1.starts_with(&p2));
-        let p3="1,2".parse::<BgpASpath>().unwrap();
+        let p3 = "1,2".parse::<BgpASpath>().unwrap();
         assert!(p1.starts_with(&p3));
     }
- 
- }
+}

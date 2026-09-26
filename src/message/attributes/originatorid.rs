@@ -15,9 +15,8 @@ use std::net::IpAddr;
 
 /// BGP originator id path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpOriginatorID {
     pub value: IpAddr,
 }

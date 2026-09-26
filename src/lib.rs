@@ -326,6 +326,8 @@ pub enum BgpCapability {
     SafiIPv6fu,
     /// BGP capability vpnv6 unicast.
     SafiVPNv6u,
+    /// BGP capability vpnv6 flowspec.
+    SafiVPNv6fu,
     /// BGP capability vpnv6 multicast.
     SafiVPNv6m,
     /// BGP capability ipv6 mdt.
@@ -374,6 +376,7 @@ impl BgpCapability {
             BgpCapability::SafiIPv6fu => 6,
             BgpCapability::SafiIPv6mdt => 6,
             BgpCapability::SafiVPNv6u => 6,
+            BgpCapability::SafiVPNv6fu => 6,
             BgpCapability::SafiVPNv6m => 6,
             BgpCapability::SafiVPLS => 6,
             BgpCapability::SafiEVPN => 6,
@@ -427,6 +430,9 @@ impl BgpCapability {
             }
             BgpCapability::SafiIPv6fu => {
                 buf.clone_from_slice(&[1, 4, 0, 2, 0, 133]);
+            }
+            BgpCapability::SafiVPNv6fu => {
+                buf.clone_from_slice(&[1, 4, 0, 2, 0, 134]);
             }
             BgpCapability::SafiIPv6lu => {
                 buf.clone_from_slice(&[1, 4, 0, 2, 0, 4]);
@@ -539,6 +545,7 @@ impl BgpCapability {
                     [0, 2, 0, 4] => BgpCapability::SafiIPv6lu,
                     [0, 2, 0, 66] => BgpCapability::SafiIPv6mdt,
                     [0, 2, 0, 128] => BgpCapability::SafiVPNv6u,
+                    [0, 2, 0, 134] => BgpCapability::SafiVPNv6fu,
                     [0, 2, 0, 129] => BgpCapability::SafiVPNv6m,
                     [0, 25, 0, 65] => BgpCapability::SafiVPLS,
                     [0, 25, 0, 70] => BgpCapability::SafiEVPN,

@@ -48,8 +48,7 @@ pub trait BgpItemLong<T: std::marker::Sized> {
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub enum BgpAddr {
     None,
     V4(std::net::Ipv4Addr),
@@ -68,37 +67,37 @@ impl BgpAddr {
     pub fn is_none(&self) -> bool {
         match self {
             BgpAddr::None => true,
-            _ => false
+            _ => false,
         }
     }
     pub fn is_v4(&self) -> bool {
         match self {
             BgpAddr::V4(_) => true,
-            _ => false
+            _ => false,
         }
     }
     pub fn is_v6(&self) -> bool {
         match self {
             BgpAddr::V6(_) => true,
-            _ => false
+            _ => false,
         }
     }
     pub fn is_v4rd(&self) -> bool {
         match self {
             BgpAddr::V4RD(_) => true,
-            _ => false
+            _ => false,
         }
     }
     pub fn is_v6rd(&self) -> bool {
         match self {
             BgpAddr::V6RD(_) => true,
-            _ => false
+            _ => false,
         }
     }
     pub fn is_l2(&self) -> bool {
         match self {
             BgpAddr::L2(_) => true,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -212,8 +211,7 @@ impl<'de> serde::Deserialize<'de> for BgpNet {
 
 /// Represents variance of NLRI collections
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub enum BgpAddrs {
     None,
     IPV4U(Vec<BgpAddrV4>),
@@ -235,7 +233,8 @@ pub enum BgpAddrs {
     EVPN(Vec<BgpEVPN>),
     FS4U(Vec<BgpFlowSpec<BgpAddrV4>>),
     FS6U(Vec<BgpFlowSpec<FS6>>),
-    FSV4U(Vec<BgpFlowSpec<FSV4U>>),
+    FSV4U((BgpRD, Vec<BgpFlowSpec<BgpAddrV4>>)),
+    FSV6U((BgpRD, Vec<BgpFlowSpec<FS6>>)),
     IPV4UP(Vec<WithPathId<BgpAddrV4>>),
     IPV4MP(Vec<WithPathId<BgpAddrV4>>),
     IPV4LUP(Vec<WithPathId<Labeled<BgpAddrV4>>>),
@@ -353,8 +352,7 @@ pub fn encode_pathid_bgpitems_to<T: BgpItem<T> + Clone + PartialEq + Eq + Partia
 }
 /// BGP VPN route distinguisher
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpRD {
     /// high-order part
     pub rdh: u32,
@@ -445,7 +443,7 @@ impl BgpRD {
         }
     }
     pub fn to_u64(&self) -> u64 {
-        ((self.rdh as u64) << 32)|(self.rdl as u64)
+        ((self.rdh as u64) << 32) | (self.rdl as u64)
     }
 }
 impl std::str::FromStr for BgpRD {
@@ -514,9 +512,8 @@ impl std::fmt::Display for BgpRD {
 }
 /// MPLS labels as NLRI component
 #[derive(Debug, Clone)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct MplsLabels {
     pub labels: Vec<u32>,
 }
@@ -573,14 +570,14 @@ impl std::fmt::Display for MplsLabels {
 
 impl BgpItem<MplsLabels> for MplsLabels {
     fn extract_bits_from(bits: u8, buf: &[u8]) -> Result<(MplsLabels, usize), BgpError> {
-        if buf.len()<3 {
+        if buf.len() < 3 {
             return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let mut lbls = Vec::<u32>::new();
         let mut curpos: usize = 0;
         let mut leftbits = bits;
         while leftbits > 0 {
-            if buf.len()<(curpos+3) {
+            if buf.len() < (curpos + 3) {
                 return Err(BgpError::InsufficientBufferSize(file!(), line!()));
             }
             let labelval = (buf[curpos] as u32) << 12
@@ -607,7 +604,7 @@ impl BgpItem<MplsLabels> for MplsLabels {
         if self.labels.is_empty() {
             return Ok((0, 0));
         }
-        if buf.len()<(self.labels.len()*4) {
+        if buf.len() < (self.labels.len() * 4) {
             return Err(BgpError::InsufficientBufferSize(file!(), line!()));
         }
         let mut curpos: usize = 0;
@@ -864,7 +861,8 @@ impl BgpAddrs {
             BgpAddrs::EVPN(v) => v.is_empty(),
             BgpAddrs::FS4U(v) => v.is_empty(),
             BgpAddrs::FS6U(v) => v.is_empty(),
-            BgpAddrs::FSV4U(v) => v.is_empty(),
+            BgpAddrs::FSV4U(v) => v.1.is_empty(),
+            BgpAddrs::FSV6U(v) => v.1.is_empty(),
             BgpAddrs::IPV4UP(v) => v.is_empty(),
             BgpAddrs::IPV4MP(v) => v.is_empty(),
             BgpAddrs::IPV4LUP(v) => v.is_empty(),
@@ -900,7 +898,8 @@ impl BgpAddrs {
             BgpAddrs::EVPN(v) => v.len(),
             BgpAddrs::FS4U(v) => v.len(),
             BgpAddrs::FS6U(v) => v.len(),
-            BgpAddrs::FSV4U(v) => v.len(),
+            BgpAddrs::FSV4U(v) => v.1.len(),
+            BgpAddrs::FSV6U(v) => v.1.len(),
             BgpAddrs::IPV4UP(v) => v.len(),
             BgpAddrs::IPV4MP(v) => v.len(),
             BgpAddrs::IPV4LUP(v) => v.len(),
@@ -930,6 +929,7 @@ impl BgpAddrs {
             BgpAddrs::FS4U(_) => (1, 133),
             BgpAddrs::FSV4U(_) => (1, 134),
             BgpAddrs::FS6U(_) => (2, 133),
+            BgpAddrs::FSV6U(_) => (2, 134),
             BgpAddrs::IPV6U(_) => (2, 1),
             BgpAddrs::IPV6M(_) => (2, 2),
             BgpAddrs::IPV6LU(_) => (2, 4),
@@ -1052,8 +1052,12 @@ impl BgpAddrs {
                     }
                     134 => {
                         //vpn4u flowspec
-                        let r = decode_bgpaddritems_from(peer.peer_mode, buf)?;
-                        Ok((BgpAddrs::FSV4U(r.0), r.1))
+                        let (rd, ofs) = BgpRD::decode_rd_from(buf)?;
+                        let r = decode_bgpaddritems_from::<BgpFlowSpec<BgpAddrV4>>(
+                            peer.peer_mode,
+                            &buf[ofs..],
+                        )?;
+                        Ok((BgpAddrs::FSV4U((rd, r.0)), r.1 + ofs))
                     }
                     n => Err(BgpError::from_string(format!(
                         "Unknown safi for ipv4 {:?}",
@@ -1141,6 +1145,15 @@ impl BgpAddrs {
                         let r = decode_bgpaddritems_from(peer.peer_mode, buf)?;
                         Ok((BgpAddrs::FS6U(r.0), r.1))
                     }
+                    134 => {
+                        //vpn6u flowspec
+                        let (rd, ofs) = BgpRD::decode_rd_from(buf)?;
+                        let r = decode_bgpaddritems_from::<BgpFlowSpec<FS6>>(
+                            peer.peer_mode,
+                            &buf[ofs..],
+                        )?;
+                        Ok((BgpAddrs::FSV6U((rd, r.0)), r.1 + ofs))
+                    }
                     n => Err(BgpError::from_string(format!(
                         "Unknown safi for ipv6 {:?}",
                         n
@@ -1179,8 +1192,15 @@ impl BgpAddrs {
             BgpAddrs::VPNV4U(v) => encode_bgpitems_to(v, buf),
             BgpAddrs::VPNV4M(v) => encode_bgpitems_to(v, buf),
             BgpAddrs::FS4U(v) => encode_bgpaddritems_to(v, peer.peer_mode, buf),
-            BgpAddrs::FSV4U(v) => encode_bgpaddritems_to(v, peer.peer_mode, buf),
+            BgpAddrs::FSV4U(v) => {
+                let ofs = v.0.encode_rd_to(buf)?;
+                encode_bgpaddritems_to(&v.1, peer.peer_mode, &mut buf[ofs..])
+            }
             BgpAddrs::FS6U(v) => encode_bgpaddritems_to(v, peer.peer_mode, buf),
+            BgpAddrs::FSV6U(v) => {
+                let ofs = v.0.encode_rd_to(buf)?;
+                encode_bgpaddritems_to(&v.1, peer.peer_mode, &mut buf[ofs..])
+            }
             BgpAddrs::IPV6U(v) => encode_bgpitems_to(v, buf),
             BgpAddrs::IPV6M(v) => encode_bgpitems_to(v, buf),
             BgpAddrs::IPV6LU(v) => encode_bgpitems_to(v, buf),

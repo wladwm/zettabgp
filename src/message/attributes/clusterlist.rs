@@ -14,9 +14,8 @@ use serde::{Deserialize, Serialize};
 
 /// BGP clustr list path attribute struct
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpClusterList {
     pub value: Vec<std::net::IpAddr>,
 }

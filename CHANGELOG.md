@@ -1,3 +1,7 @@
+### 0.5.0 (2026-09-26)
+Fixed serde dependencies, thanks to Sergei Zharkov (https://github.com/1271).
+
+
 ### 0.4.1 (2026-08-18)
 Fixed ipv6 flowspec parse.
 

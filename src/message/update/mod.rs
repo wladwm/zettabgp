@@ -383,7 +383,10 @@ mod tests {
         let truncate_amount = 3;
         buf.truncate(truncate_amount as usize);
         let decode = msg.decode_from(&params, &buf);
-        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize(_, _))));
+        assert!(matches!(
+            decode,
+            Err(BgpError::InsufficientBufferSize(_, _))
+        ));
     }
 
     #[test]
@@ -424,6 +427,9 @@ mod tests {
         }
         msg.updates = BgpAddrs::IPV4U(updates.clone());
         let decode = msg.decode_from(&params, &buf);
-        assert!(matches!(decode, Err(BgpError::InsufficientBufferSize(_, _))));
+        assert!(matches!(
+            decode,
+            Err(BgpError::InsufficientBufferSize(_, _))
+        ));
     }
 }

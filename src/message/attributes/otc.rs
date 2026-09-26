@@ -14,23 +14,15 @@ use serde::{Deserialize, Serialize};
 
 /// BGP Atmic aggregate path attribute
 #[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpOTC {
     pub value: u32,
 }
 impl BgpOTC {
-    pub fn decode_from(
-        _peer: &BgpSessionParams,
-        buf: &[u8],
-    ) -> Result<BgpOTC, BgpError> {
+    pub fn decode_from(_peer: &BgpSessionParams, buf: &[u8]) -> Result<BgpOTC, BgpError> {
         Ok(BgpOTC {
-            value: if buf.is_empty() {
-                0
-            } else {
-                getn_u32(buf)
-            },
+            value: if buf.is_empty() { 0 } else { getn_u32(buf) },
         })
     }
 }

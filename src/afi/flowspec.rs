@@ -40,8 +40,7 @@ impl FSItem<BgpAddrV4> for BgpAddrV4 {
 
 /// FlowSpec NLRI ipv6 unicast
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct FS6 {
     pub ipv6: BgpAddrV6,
     pub offset: u8,
@@ -56,7 +55,7 @@ impl FS6 {
 }
 impl std::convert::From<BgpAddrV6> for FS6 {
     fn from(ipv6: BgpAddrV6) -> FS6 {
-        FS6 {ipv6, offset: 0}
+        FS6 { ipv6, offset: 0 }
     }
 }
 impl FSItem<FS6> for FS6 {
@@ -86,58 +85,19 @@ impl FSItem<FS6> for FS6 {
 impl std::fmt::Display for FS6 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.ipv6.fmt(f)?;
-        if self.offset!=0 {
-            write!(f,"(offset={})",self.offset)?;
+        if self.offset != 0 {
+            write!(f, "(offset={})", self.offset)?;
         }
         Ok(())
     }
 }
-/// FlowSpec NLRI vpnv4 unicast
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct FSV4U {
-    pub prefix: WithRd<BgpAddrV4>,
-}
-impl FSV4U {
-    pub fn new(p: WithRd<BgpAddrV4>) -> FSV4U {
-        FSV4U { prefix: p }
-    }
-}
-impl FSItem<FSV4U> for FSV4U {
-    fn decode_from_fs(buf: &[u8]) -> Result<(FSV4U, usize), BgpError> {
-        let rd = BgpRD::decode_rd_from(&buf[1..])?;
-        let pf = BgpAddrV4::from_bits(buf[0] - 64, &buf[rd.1 + 1..])?;
-        Ok((
-            FSV4U {
-                prefix: WithRd::<BgpAddrV4>::new(rd.0, pf.0),
-            },
-            rd.1 + pf.1 + 1,
-        ))
-    }
-    fn encode_to_fs(&self, buf: &mut [u8]) -> Result<(), BgpError> {
-        buf[0] = 0;
-        buf[1] = 0;
-        let _r = self.prefix.set_bits_to(&mut buf[2..])?;
-        Ok(())
-    }
-    fn prefixlen(&self) -> usize {
-        (self.prefix.prefix.prefixlen as usize) + 64
-    }
-    fn get_store_size(&self) -> usize {
-        10 + (((self.prefix.prefix.prefixlen as usize) + 7) / 8)
-    }
-}
-
 pub trait FSOperItem: Clone + PartialEq + Eq + PartialOrd + Ord {
     fn getbyteslen(&self) -> usize;
     fn encode_to(&self, buf: &mut [u8]) -> Result<usize, BgpError>;
     fn decode_from(buf: &[u8]) -> Result<(Self, usize), BgpError>;
 }
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct FSOperValItem {
     pub and_bit: bool,
     pub lt_cmp: bool,
@@ -258,7 +218,7 @@ impl<T: FSOperItem> FSOperVec<T> {
     pub fn push(&mut self, i: T) {
         self.items.push(i)
     }
-    pub fn iter<'s>(&'s self) -> std::slice::Iter<'s,T> {
+    pub fn iter<'s>(&'s self) -> std::slice::Iter<'s, T> {
         self.items.iter()
     }
     fn getbyteslen(&self) -> usize {
@@ -325,8 +285,7 @@ impl<'de, T: FSOperItem + de::Deserialize<'de>> de::Deserialize<'de> for FSOperV
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct FSOperMaskItem {
     pub and_bit: bool,
     pub bit_not: bool,
@@ -451,19 +410,19 @@ impl<T: FSItem<T> + std::fmt::Display> std::fmt::Display for BgpFlowSpecItem<T> 
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         use BgpFlowSpecItem::*;
         match self {
-        PrefixDst(v)=> write!(f,"dst {}",v),
-        PrefixSrc(v) => write!(f,"src {}",v),
-        Proto(v) => write!(f,"proto {}",v),
-        PortAny(v) => write!(f,"port {}",v),
-        PortDst(v) => write!(f,"portdst {}",v),
-        PortSrc(v) => write!(f,"portsrc {}",v),
-        IcmpType(v) => write!(f,"icmptype {}",v),
-        IcmpCode(v) => write!(f,"icmpcode {}",v),
-        TcpFlags(v) => write!(f,"tcpflags {}",v),
-        PacketLength(v) => write!(f,"len {}",v),
-        Dscp(v) => write!(f,"dscp {}",v),
-        Fragment(v) => write!(f,"frag {}",v),
-        FlowLabel(v) => write!(f,"flowlabel {}",v),
+            PrefixDst(v) => write!(f, "dst {}", v),
+            PrefixSrc(v) => write!(f, "src {}", v),
+            Proto(v) => write!(f, "proto {}", v),
+            PortAny(v) => write!(f, "port {}", v),
+            PortDst(v) => write!(f, "portdst {}", v),
+            PortSrc(v) => write!(f, "portsrc {}", v),
+            IcmpType(v) => write!(f, "icmptype {}", v),
+            IcmpCode(v) => write!(f, "icmpcode {}", v),
+            TcpFlags(v) => write!(f, "tcpflags {}", v),
+            PacketLength(v) => write!(f, "len {}", v),
+            Dscp(v) => write!(f, "dscp {}", v),
+            Fragment(v) => write!(f, "frag {}", v),
+            FlowLabel(v) => write!(f, "flowlabel {}", v),
         }
     }
 }

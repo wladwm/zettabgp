@@ -17,9 +17,9 @@
 #[derive(Debug)]
 pub enum BgpError {
     Static(&'static str),
-    InsufficientBufferSize(&'static str,u32),
-    ProtocolError(&'static str,u32),
-    TooManyData(&'static str,u32),
+    InsufficientBufferSize(&'static str, u32),
+    ProtocolError(&'static str, u32),
+    TooManyData(&'static str, u32),
     DynStr(std::string::String),
     Other(Box<dyn std::error::Error + Send + Sync>),
 }
@@ -44,9 +44,15 @@ impl BgpError {
 impl std::fmt::Display for BgpError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            BgpError::InsufficientBufferSize(src,lineno) => write!(f, "BgpError InsufficientBufferSize ({}:{})", *src, *lineno),
-            BgpError::ProtocolError(src,lineno) => write!(f, "BgpError ProtocolError({}:{})", *src, *lineno),
-            BgpError::TooManyData(src,lineno) => write!(f, "BgpError TooManyData({}:{})", *src, *lineno),
+            BgpError::InsufficientBufferSize(src, lineno) => {
+                write!(f, "BgpError InsufficientBufferSize ({}:{})", *src, *lineno)
+            }
+            BgpError::ProtocolError(src, lineno) => {
+                write!(f, "BgpError ProtocolError({}:{})", *src, *lineno)
+            }
+            BgpError::TooManyData(src, lineno) => {
+                write!(f, "BgpError TooManyData({}:{})", *src, *lineno)
+            }
             BgpError::Static(s) => write!(f, "BgpError {}", s),
             BgpError::DynStr(s) => write!(f, "BgpError {}", s),
             BgpError::Other(e) => write!(f, "BgpError {}", e),

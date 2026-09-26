@@ -13,8 +13,7 @@ use serde::{Deserialize, Serialize};
 
 /// BGP multiprotocol updates
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpMPUpdates {
     /// next hop for this updates
     pub nexthop: BgpAddr,
@@ -85,9 +84,13 @@ impl BgpMPUpdates {
                     }
                     128 | 129 | 134 => {
                         //vpnv4u|vpnv4m|flow
-                        let r = BgpIPv4RD::decode_from(peer.peer_mode, &buf[curpos..])?;
-                        nh = BgpAddr::V4RD(r.0);
-                        curpos += r.1;
+                        if buf[3] != 0 {
+                            let r = BgpIPv4RD::decode_from(peer.peer_mode, &buf[curpos..])?;
+                            nh = BgpAddr::V4RD(r.0);
+                            curpos += r.1;
+                        } else {
+                            nh = BgpAddr::None;
+                        }
                     }
                     n => {
                         log::trace!("AFI/SAFI {}/{} {:?}", afi, safi, &buf[curpos..]);
@@ -112,9 +115,13 @@ impl BgpMPUpdates {
                     }
                     128 | 129 | 134 => {
                         //vpnv6u|vpnv6m|flow
-                        let r = BgpIPv6RD::decode_from(peer.peer_mode, &buf[curpos..])?;
-                        nh = BgpAddr::V6RD(r.0);
-                        curpos += r.1;
+                        if buf[3] != 0 {
+                            let r = BgpIPv6RD::decode_from(peer.peer_mode, &buf[curpos..])?;
+                            nh = BgpAddr::V6RD(r.0);
+                            curpos += r.1;
+                        } else {
+                            nh = BgpAddr::None;
+                        }
                     }
                     n => {
                         return Err(BgpError::from_string(format!(
@@ -201,8 +208,7 @@ impl BgpAttr for BgpMPUpdates {
 
 /// BGP multiprotocol withdraws
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpMPWithdraws {
     /// NLRI
     pub addrs: BgpAddrs,

@@ -24,25 +24,22 @@ pub const NOPEER: BgpCommunity = BgpCommunity { value: 0xffffff04 };
 
 /// BGP community - element for BgpCommunityList path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpCommunity {
     pub value: u32,
 }
 /// BGP community list path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpCommunityList {
     pub value: std::collections::BTreeSet<BgpCommunity>,
 }
 
 /// BGP large community - element for BgpLargeCommunityList path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpLargeCommunity {
     pub ga: u32,
     pub ldp1: u32,
@@ -50,9 +47,7 @@ pub struct BgpLargeCommunity {
 }
 /// BGP <large> community list path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(feature = "serialization")]
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct BgpLargeCommunityList {
     pub value: std::collections::BTreeSet<BgpLargeCommunity>,
 }
