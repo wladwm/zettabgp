@@ -16,6 +16,7 @@ use serde::{ser::SerializeStruct, Deserialize, Serialize};
 
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
+use std::unimplemented;
 pub mod ipv4;
 pub use ipv4::*;
 pub mod ipv6;
@@ -104,13 +105,13 @@ impl BgpAddr {
 impl std::fmt::Display for BgpAddr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            BgpAddr::None => write!(f, "<>"),
-            BgpAddr::V4(s) => write!(f, "{}", s),
-            BgpAddr::V6(s) => write!(f, "{}", s),
-            BgpAddr::V4RD(s) => write!(f, "{}", s),
-            BgpAddr::V6RD(s) => write!(f, "{}", s),
-            BgpAddr::L2(s) => write!(f, "{}", s),
-            BgpAddr::MVPN(s) => write!(f, "{}", s),
+            BgpAddr::None => f.write_str("<>"),
+            BgpAddr::V4(s) => s.fmt(f),
+            BgpAddr::V6(s) => s.fmt(f),
+            BgpAddr::V4RD(s) => s.fmt(f),
+            BgpAddr::V6RD(s) => s.fmt(f),
+            BgpAddr::L2(s) => s.fmt(f),
+            BgpAddr::MVPN(s) => s.fmt(f),
         }
     }
 }
@@ -233,8 +234,8 @@ pub enum BgpAddrs {
     EVPN(Vec<BgpEVPN>),
     FS4U(Vec<BgpFlowSpec<BgpAddrV4>>),
     FS6U(Vec<BgpFlowSpec<FS6>>),
-    FSV4U((BgpRD, Vec<BgpFlowSpec<BgpAddrV4>>)),
-    FSV6U((BgpRD, Vec<BgpFlowSpec<FS6>>)),
+    FSV4U(Vec<BgpFlowSpecRD<BgpAddrV4>>),
+    FSV6U(Vec<BgpFlowSpecRD<FS6>>),
     IPV4UP(Vec<WithPathId<BgpAddrV4>>),
     IPV4MP(Vec<WithPathId<BgpAddrV4>>),
     IPV4LUP(Vec<WithPathId<Labeled<BgpAddrV4>>>),
@@ -567,7 +568,17 @@ impl std::fmt::Display for MplsLabels {
         Ok(())
     }
 }
+impl std::str::FromStr for MplsLabels {
+    type Err = BgpError;
 
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut labels = Vec::new();
+        for sn in s.split(',') {
+            labels.push(sn.parse().map_err(|e| BgpError::from_error(e))?);
+        }
+        Ok(MplsLabels { labels })
+    }
+}
 impl BgpItem<MplsLabels> for MplsLabels {
     fn extract_bits_from(bits: u8, buf: &[u8]) -> Result<(MplsLabels, usize), BgpError> {
         if buf.len() < 3 {
@@ -690,10 +701,35 @@ impl<T: BgpItem<T>> BgpItem<Labeled<T>> for Labeled<T> {
 impl<T: BgpItem<T> + std::fmt::Display> std::fmt::Display for Labeled<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.labels.labels.is_empty() {
-            write!(f, "{}", self.prefix)
+            self.prefix.fmt(f)
         } else {
             write!(f, "<l:{}> {}", self.labels, self.prefix)
         }
+    }
+}
+
+impl<T> std::str::FromStr for Labeled<T>
+where
+    T: BgpItem<T> + std::str::FromStr,
+    <T as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static,
+{
+    type Err = BgpError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.starts_with("<l:") {
+            let prt = match s[3..].split_once('>') {
+                Some(p) => p,
+                None => return Err(BgpError::Static("Unable to parse labeled BgpItem")),
+            };
+            return Ok(Self {
+                labels: prt.0.parse()?,
+                prefix: prt.1.parse().map_err(|e| BgpError::from_error(e))?,
+            });
+        }
+        Ok(Self {
+            labels: MplsLabels::new(),
+            prefix: s.parse().map_err(|e| BgpError::from_error(e))?,
+        })
     }
 }
 /// NRI with Route distinguisher
@@ -767,6 +803,27 @@ impl<T: BgpItem<T> + std::fmt::Display> std::fmt::Display for WithRd<T> {
         } else {
             write!(f, "<rd:{}> {}", self.rd, self.prefix)
         }
+    }
+}
+impl<T> std::str::FromStr for WithRd<T>
+where
+    T: BgpItem<T> + std::str::FromStr,
+    <T as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static,
+{
+    type Err = BgpError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if !s.starts_with("<rd:") {
+            return Err(BgpError::Static("Unable to parse WithRd BgpItem"));
+        }
+        let prt = match s[4..].split_once('>') {
+            Some(p) => p,
+            None => return Err(BgpError::Static("Unable to parse WithRd BgpItem")),
+        };
+        Ok(Self {
+            rd: prt.0.parse()?,
+            prefix: prt.1.parse().map_err(|e| BgpError::from_error(e))?,
+        })
     }
 }
 pub type BgpPathId = u32;
@@ -861,8 +918,8 @@ impl BgpAddrs {
             BgpAddrs::EVPN(v) => v.is_empty(),
             BgpAddrs::FS4U(v) => v.is_empty(),
             BgpAddrs::FS6U(v) => v.is_empty(),
-            BgpAddrs::FSV4U(v) => v.1.is_empty(),
-            BgpAddrs::FSV6U(v) => v.1.is_empty(),
+            BgpAddrs::FSV4U(v) => v.is_empty(),
+            BgpAddrs::FSV6U(v) => v.is_empty(),
             BgpAddrs::IPV4UP(v) => v.is_empty(),
             BgpAddrs::IPV4MP(v) => v.is_empty(),
             BgpAddrs::IPV4LUP(v) => v.is_empty(),
@@ -898,8 +955,8 @@ impl BgpAddrs {
             BgpAddrs::EVPN(v) => v.len(),
             BgpAddrs::FS4U(v) => v.len(),
             BgpAddrs::FS6U(v) => v.len(),
-            BgpAddrs::FSV4U(v) => v.1.len(),
-            BgpAddrs::FSV6U(v) => v.1.len(),
+            BgpAddrs::FSV4U(v) => v.len(),
+            BgpAddrs::FSV6U(v) => v.len(),
             BgpAddrs::IPV4UP(v) => v.len(),
             BgpAddrs::IPV4MP(v) => v.len(),
             BgpAddrs::IPV4LUP(v) => v.len(),
@@ -1052,12 +1109,8 @@ impl BgpAddrs {
                     }
                     134 => {
                         //vpn4u flowspec
-                        let (rd, ofs) = BgpRD::decode_rd_from(buf)?;
-                        let r = decode_bgpaddritems_from::<BgpFlowSpec<BgpAddrV4>>(
-                            peer.peer_mode,
-                            &buf[ofs..],
-                        )?;
-                        Ok((BgpAddrs::FSV4U((rd, r.0)), r.1 + ofs))
+                        let r = decode_bgpaddritems_from(peer.peer_mode, buf)?;
+                        Ok((BgpAddrs::FSV4U(r.0), r.1))
                     }
                     n => Err(BgpError::from_string(format!(
                         "Unknown safi for ipv4 {:?}",
@@ -1147,12 +1200,8 @@ impl BgpAddrs {
                     }
                     134 => {
                         //vpn6u flowspec
-                        let (rd, ofs) = BgpRD::decode_rd_from(buf)?;
-                        let r = decode_bgpaddritems_from::<BgpFlowSpec<FS6>>(
-                            peer.peer_mode,
-                            &buf[ofs..],
-                        )?;
-                        Ok((BgpAddrs::FSV6U((rd, r.0)), r.1 + ofs))
+                        let r = decode_bgpaddritems_from(peer.peer_mode, buf)?;
+                        Ok((BgpAddrs::FSV6U(r.0), r.1))
                     }
                     n => Err(BgpError::from_string(format!(
                         "Unknown safi for ipv6 {:?}",
@@ -1192,15 +1241,9 @@ impl BgpAddrs {
             BgpAddrs::VPNV4U(v) => encode_bgpitems_to(v, buf),
             BgpAddrs::VPNV4M(v) => encode_bgpitems_to(v, buf),
             BgpAddrs::FS4U(v) => encode_bgpaddritems_to(v, peer.peer_mode, buf),
-            BgpAddrs::FSV4U(v) => {
-                let ofs = v.0.encode_rd_to(buf)?;
-                encode_bgpaddritems_to(&v.1, peer.peer_mode, &mut buf[ofs..])
-            }
+            BgpAddrs::FSV4U(v) => encode_bgpaddritems_to(v, peer.peer_mode, buf),
             BgpAddrs::FS6U(v) => encode_bgpaddritems_to(v, peer.peer_mode, buf),
-            BgpAddrs::FSV6U(v) => {
-                let ofs = v.0.encode_rd_to(buf)?;
-                encode_bgpaddritems_to(&v.1, peer.peer_mode, &mut buf[ofs..])
-            }
+            BgpAddrs::FSV6U(v) => encode_bgpaddritems_to(v, peer.peer_mode, buf),
             BgpAddrs::IPV6U(v) => encode_bgpitems_to(v, buf),
             BgpAddrs::IPV6M(v) => encode_bgpitems_to(v, buf),
             BgpAddrs::IPV6LU(v) => encode_bgpitems_to(v, buf),

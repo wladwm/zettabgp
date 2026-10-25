@@ -20,6 +20,11 @@ pub enum BgpAttrOrigin {
     Egp,
     Incomplete,
 }
+impl std::default::Default for BgpAttrOrigin {
+    fn default() -> Self {
+        BgpAttrOrigin::Incomplete
+    }
+}
 impl std::fmt::Display for BgpAttrOrigin {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {

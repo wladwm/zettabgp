@@ -141,3 +141,43 @@ pub(crate) fn fmt_vec<
     }
     Ok(())
 }
+
+#[cfg(feature = "serialization")]
+pub(crate) enum StrOrNum {
+    Str(String),
+    Num(u64),
+    Float(f64),
+}
+#[cfg(feature = "serialization")]
+pub(crate) struct StrOrNumVisitor;
+#[cfg(feature = "serialization")]
+impl<'de> serde::de::Visitor<'de> for StrOrNumVisitor {
+    type Value = StrOrNum;
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("string or number")
+    }
+    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(StrOrNum::Str(s.to_owned()))
+    }
+    fn visit_string<E>(self, s: String) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(StrOrNum::Str(s))
+    }
+    fn visit_u64<E>(self, n: u64) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(StrOrNum::Num(n))
+    }
+    fn visit_f64<E>(self, n: f64) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(StrOrNum::Float(n))
+    }
+}

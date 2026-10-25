@@ -1,6 +1,10 @@
+### 0.6.0 (2026-10-25)
+RouteRefresh message supported
+Flowspecs for L3VPN
+Community and extended community deserialization supports strings
+
 ### 0.5.0 (2026-09-26)
 Fixed serde dependencies, thanks to Sergei Zharkov (https://github.com/1271).
-
 
 ### 0.4.1 (2026-08-18)
 Fixed ipv6 flowspec parse.

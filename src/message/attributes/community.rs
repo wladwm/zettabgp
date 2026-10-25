@@ -24,7 +24,7 @@ pub const NOPEER: BgpCommunity = BgpCommunity { value: 0xffffff04 };
 
 /// BGP community - element for BgpCommunityList path attribute
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", derive(Serialize))]
 #[cfg_attr(feature = "serialization", serde(transparent))]
 pub struct BgpCommunity {
     pub value: u32,
@@ -167,6 +167,21 @@ impl BgpCommunity {
         };
         setn_u32(self.value, buf);
         Ok(4)
+    }
+}
+#[cfg(feature = "serialization")]
+impl<'de> serde::de::Deserialize<'de> for BgpCommunity {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        use crate::util::*;
+        let a = deserializer.deserialize_any(crate::util::StrOrNumVisitor)?;
+        match a {
+            StrOrNum::Num(v) => Ok(BgpCommunity { value: v as u32 }),
+            StrOrNum::Float(v) => Ok(BgpCommunity { value: v as u32 }),
+            StrOrNum::Str(s) => s.parse().map_err(|e| serde::de::Error::custom(e)),
+        }
     }
 }
 impl std::fmt::Debug for BgpCommunity {

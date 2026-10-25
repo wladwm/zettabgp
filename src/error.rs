@@ -37,8 +37,13 @@ impl BgpError {
     }
     /// Wraps any error implements std::error::Error. In Box.
     #[inline]
-    pub fn from_error(e: Box<dyn std::error::Error + Send + Sync>) -> BgpError {
+    pub fn from_error_box(e: Box<dyn std::error::Error + Send + Sync>) -> BgpError {
         BgpError::Other(e)
+    }
+    /// Wraps any error implements std::error::Error. In Box.
+    #[inline]
+    pub fn from_error<E: std::error::Error + Send + Sync + 'static>(e: E) -> BgpError {
+        BgpError::Other(Box::new(e))
     }
 }
 impl std::fmt::Display for BgpError {
@@ -67,24 +72,39 @@ impl std::error::Error for BgpError {
         }
     }
 }
-
+impl From<String> for BgpError {
+    #[inline]
+    fn from(error: String) -> Self {
+        BgpError::DynStr(error)
+    }
+}
 impl From<std::io::Error> for BgpError {
     #[inline]
     fn from(error: std::io::Error) -> Self {
         BgpError::Other(Box::new(error))
     }
 }
-
 impl From<std::net::AddrParseError> for BgpError {
     #[inline]
     fn from(error: std::net::AddrParseError) -> Self {
         BgpError::Other(Box::new(error))
     }
 }
-
+impl From<std::num::ParseIntError> for BgpError {
+    #[inline]
+    fn from(error: std::num::ParseIntError) -> Self {
+        BgpError::Other(Box::new(error))
+    }
+}
 impl From<std::str::Utf8Error> for BgpError {
     #[inline]
     fn from(error: std::str::Utf8Error) -> Self {
         BgpError::Other(Box::new(error))
+    }
+}
+
+impl std::convert::Into<BgpError> for Box<dyn std::error::Error + Send + Sync + 'static> {
+    fn into(self) -> BgpError {
+        BgpError::Other(self)
     }
 }

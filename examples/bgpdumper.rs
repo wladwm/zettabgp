@@ -128,6 +128,14 @@ impl BgpDumper {
                     }
                     println!("{:?}", msgupdate);
                 }
+                BgpMessageType::Routerefresh => {
+                    let mut msgrr = BgpRouterefreshMessage::new();
+                    if let Err(e) = msgrr.decode_from(&self.params, &buf[0..msg.1]) {
+                        eprintln!("BGP update decode error: {:?}", e);
+                        continue;
+                    }
+                    println!("{:?}", msgrr);
+                }
             }
         }
         Ok(())

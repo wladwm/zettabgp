@@ -18,6 +18,8 @@ pub mod open;
 pub use open::*;
 pub mod update;
 pub use update::*;
+pub mod routerefresh;
+pub use routerefresh::*;
 
 /// trait BgpMessage represents BGP protocol message
 pub trait BgpMessage {
@@ -25,13 +27,14 @@ pub trait BgpMessage {
     fn encode_to(&self, peer: &BgpSessionParams, buf: &mut [u8]) -> Result<usize, BgpError>;
 }
 
-/// Bgp message type: open, update, notification or keepalive.
+/// Bgp message type: open, update, notification, keepalive or route-refresh.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BgpMessageType {
     Open,
     Update,
     Notification,
     Keepalive,
+    Routerefresh,
 }
 
 impl BgpMessageType {
@@ -42,6 +45,7 @@ impl BgpMessageType {
             2 => Ok(BgpMessageType::Update),
             3 => Ok(BgpMessageType::Notification),
             4 => Ok(BgpMessageType::Keepalive),
+            5 => Ok(BgpMessageType::Routerefresh),
             _ => Err(BgpError::static_str("Invalid message type")),
         }
     }
@@ -52,6 +56,7 @@ impl BgpMessageType {
             BgpMessageType::Update => 2,
             BgpMessageType::Notification => 3,
             BgpMessageType::Keepalive => 4,
+            BgpMessageType::Routerefresh => 5,
         }
     }
 }

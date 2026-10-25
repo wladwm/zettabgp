@@ -523,6 +523,53 @@ impl BgpCapability {
         Ok(())
     }
 
+    pub const fn from_afi_safi(afi: u16, safi: u8) -> Option<BgpCapability> {
+        Some(match (afi, safi) {
+            (1, 1) => BgpCapability::SafiIPv4u,
+            (1, 133) => BgpCapability::SafiIPv4fu,
+            (1, 2) => BgpCapability::SafiIPv4m,
+            (1, 5) => BgpCapability::SafiIPv4mvpn,
+            (1, 128) => BgpCapability::SafiVPNv4u,
+            (1, 134) => BgpCapability::SafiVPNv4fu,
+            (1, 129) => BgpCapability::SafiVPNv4m,
+            (1, 4) => BgpCapability::SafiIPv4lu,
+            (1, 66) => BgpCapability::SafiIPv4mdt,
+            (2, 1) => BgpCapability::SafiIPv6u,
+            (2, 133) => BgpCapability::SafiIPv6fu,
+            (2, 4) => BgpCapability::SafiIPv6lu,
+            (2, 66) => BgpCapability::SafiIPv6mdt,
+            (2, 128) => BgpCapability::SafiVPNv6u,
+            (2, 134) => BgpCapability::SafiVPNv6fu,
+            (2, 129) => BgpCapability::SafiVPNv6m,
+            (25, 65) => BgpCapability::SafiVPLS,
+            (25, 70) => BgpCapability::SafiEVPN,
+            _ => return None,
+        })
+    }
+    pub const fn afi_safi(&self) -> Option<(u16, u8)> {
+        Some(match self {
+            BgpCapability::SafiIPv4u => (1, 1),
+            BgpCapability::SafiIPv4fu => (1, 133),
+            BgpCapability::SafiIPv4m => (1, 2),
+            BgpCapability::SafiIPv4mvpn => (1, 5),
+            BgpCapability::SafiVPNv4u => (1, 128),
+            BgpCapability::SafiVPNv4fu => (1, 134),
+            BgpCapability::SafiVPNv4m => (1, 129),
+            BgpCapability::SafiIPv4lu => (1, 4),
+            BgpCapability::SafiIPv4mdt => (1, 66),
+            BgpCapability::SafiIPv6u => (2, 1),
+            BgpCapability::SafiIPv6fu => (2, 133),
+            BgpCapability::SafiIPv6lu => (2, 4),
+            BgpCapability::SafiIPv6mdt => (2, 66),
+            BgpCapability::SafiVPNv6u => (2, 128),
+            BgpCapability::SafiVPNv6fu => (2, 134),
+            BgpCapability::SafiVPNv6m => (2, 129),
+            BgpCapability::SafiVPLS => (25, 65),
+            BgpCapability::SafiEVPN => (25, 70),
+            _ => return None,
+        })
+    }
+
     fn from_type_and_data(captype: u8, data: &[u8]) -> Result<Option<BgpCapability>, BgpError> {
         let cap = match captype {
             1 => {

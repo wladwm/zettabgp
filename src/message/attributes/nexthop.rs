@@ -68,6 +68,6 @@ impl BgpAttr for BgpNextHop {
                 return encode_addrv4_to(&v, buf);
             }
         };
-        Err(BgpError::static_str("Invalid nexthop type"))
+        Err(format!("Invalid nexthop type {}", self).into())
     }
 }

@@ -214,11 +214,19 @@ pub struct BgpMPWithdraws {
     pub addrs: BgpAddrs,
 }
 impl BgpMPWithdraws {
+    pub fn new(addrs: BgpAddrs) -> BgpMPWithdraws {
+        BgpMPWithdraws { addrs }
+    }
     pub fn decode_from(peer: &BgpSessionParams, buf: &[u8]) -> Result<BgpMPWithdraws, BgpError> {
         let afi = getn_u16(buf);
         let safi = buf[2];
         let a = BgpAddrs::decode_from(peer, afi, safi, &buf[3..])?;
         Ok(BgpMPWithdraws { addrs: a.0 })
+    }
+}
+impl std::convert::From<BgpAddrs> for BgpMPWithdraws {
+    fn from(addrs: BgpAddrs) -> Self {
+        BgpMPWithdraws { addrs }
     }
 }
 impl std::fmt::Debug for BgpMPWithdraws {
